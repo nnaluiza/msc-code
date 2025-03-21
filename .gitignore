@@ -1,0 +1,52 @@
+# Python-specific ignores
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+env-ubuntu/
+env-windows/
+venv/
+.env/
+.venv/
+
+# Dependency lock files (if you use pipenv or poetry, adjust as needed)
+Pipfile.lock
+poetry.lock
+
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# macOS-specific files
+.DS_Store
+
+# Testing and coverage
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+*.cover
+
+# Pre-commit and other tools
+.pre-commit-cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Miscellaneous
+*.log
+*.tmp
+*.swp
+*~
+
+# Project-specific excludes (if any)
+# Add any custom patterns here, e.g., local config files
+local_settings.py
