@@ -68,7 +68,7 @@ def train_network(seed, size, rep, reps):
     print("Done.\n")
 
     print("Gathering data...")
-    data = get_data_training("chainlink.arff")
+    data = get_data_training("complex8.arff")
     print("Done.\n")
 
     print("Starting training...\n")

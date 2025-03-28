@@ -1,7 +1,8 @@
 """Imports necessary modules"""
 
 import json
-import os
+
+from utils import aux_folders_limits
 
 
 def list_params():
@@ -13,6 +14,7 @@ def list_params():
 def list_limits():
     """Returns a list of parameter limits used in the GNG algorithm"""
 
+    aux_folders_limits()
     file_path = "logs/limits/limits.json"
 
     try:
