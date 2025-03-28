@@ -107,7 +107,7 @@ class GrowingNeuralGas:
                 steps += 1
                 if steps % l == 0:
                     if plot_evolution:
-                        self.plot_network("src/visualization/sequence/" + str(sequence) + ".png")
+                        self.plot_network("visualization/sequence/" + str(sequence) + ".png")
                     sequence += 1
                     """ 8.a Determine the unit q with the maximum accumulated error """
                     q = 0
@@ -159,18 +159,19 @@ class GrowingNeuralGas:
         plt.title("Accumulated local error")
         plt.xlabel("iterations")
         plt.plot(range(len(accumulated_local_error)), accumulated_local_error)
-        plt.savefig("src/visualization/accumulated_local_error.png")
+        plt.savefig("visualization/accumulated_local_error.png")
+        # plt.savefig("")
         plt.clf()
         plt.title("Global error")
         plt.xlabel("passes")
         plt.plot(range(len(global_error)), global_error)
-        plt.savefig("src/visualization/global_error.png")
+        plt.savefig("visualization/global_error.png")
         plt.clf()
         plt.title("Neural network properties")
         plt.plot(range(len(network_order)), network_order, label="Network order")
         plt.plot(range(len(network_size)), network_size, label="Network size")
         plt.legend()
-        plt.savefig("src/visualization/network_properties.png")
+        plt.savefig("visualization/network_properties.png")
 
     def plot_network(self, file_path):
         """Plots the GNG network to a file"""
@@ -229,7 +230,7 @@ class GrowingNeuralGas:
                     label="cluster #" + str(i),
                 )
         plt.legend()
-        plt.savefig("src/visualization/clusters.png")
+        plt.savefig("visualization/clusters.png")
 
     def compute_global_error(self):
         """Calculates the global error of the algorithm"""
