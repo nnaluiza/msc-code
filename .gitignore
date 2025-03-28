@@ -1,8 +1,7 @@
 # Pastas para ignorar e arquivos
 vscode/
 visualization/
-documents/
-counter_file.txt
+logs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
