@@ -4,6 +4,7 @@ import random
 
 import pandas as pd
 from scipy.io import arff
+from sklearn import metrics
 from sklearn.preprocessing import StandardScaler
 
 from params import list_limits, list_params
@@ -60,3 +61,28 @@ def create_working_memory(seed, size):
         working_memory.append(dict_value)
 
     return working_memory
+
+
+def create_knowledge_base(clustered_data, instance, start, end):
+    labels = []
+    data = []
+
+    for item in clustered_data:
+        data.append(item[0])
+        label = item[1]
+        labels.append(label)
+
+    silhouette_avg = metrics.silhouette_score(data, labels, metric="euclidean")
+
+    return {
+        "e_b": instance["e_b"],
+        "e_n": instance["e_n"],
+        "a_max": instance["a_max"],
+        "l": instance["l"],
+        "a": instance["a"],
+        "d": instance["d"],
+        "passes": instance["passes"],
+        "silhouette_avg": float(format(silhouette_avg, ".4f")),
+        "execution_time": float(format(end - start, ".4f")),
+        "class": 1 if float(format(silhouette_avg, ".4f")) >= 0.5 else 0,
+    }

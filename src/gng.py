@@ -1,5 +1,8 @@
 # coding: utf-8
 """Imports necessary modules"""
+import time
+from datetime import timedelta
+
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -73,7 +76,16 @@ class GrowingNeuralGas:
         self.units_created += 1
         """ 1. Iterate through the data """
         sequence = 0
+
+        """Initialize the start time for the training process"""
+        start_time = 0
+        start_time = time.time()
+
         for p in range(passes):
+            """Initialize the start time of the current iteration"""
+            start = 0
+            start = time.time()
+
             print("   Pass #%d" % (p + 1))
             np.random.shuffle(self.data)
             steps = 0
@@ -107,7 +119,7 @@ class GrowingNeuralGas:
                 steps += 1
                 if steps % l == 0:
                     if plot_evolution:
-                        self.plot_network("visualization/sequence/" + str(sequence) + ".png")
+                        self.plot_network("logs/visualization/sequence/" + str(sequence) + ".png")
                     sequence += 1
                     """ 8.a Determine the unit q with the maximum accumulated error """
                     q = 0
@@ -155,23 +167,53 @@ class GrowingNeuralGas:
                     if self.network.degree(nbunch=[u]) == 0:
                         print(u)
             global_error.append(self.compute_global_error())
+
+            end = time.time()
+            execution = end - start
+            time_pass = str(timedelta(seconds=round(execution)))
+            execution_time = time_pass.split(":")
+            print(
+                "   Pass #%d" % (p + 1)
+                + " - DONE in ~"
+                + execution_time[0]
+                + "h:"
+                + execution_time[1]
+                + "m:"
+                + execution_time[2]
+                + "s.\n"
+            )
+
+        end_time = time.time()
+        total_time = end_time - start_time
+        total = str(timedelta(seconds=round(total_time)))
+        total_execution_time = total.split(":")
+        print(
+            "Total execution time in ~"
+            + total_execution_time[0]
+            + "h:"
+            + total_execution_time[1]
+            + "m:"
+            + total_execution_time[2]
+            + "s.\n"
+        )
+
         plt.clf()
         plt.title("Accumulated local error")
         plt.xlabel("iterations")
         plt.plot(range(len(accumulated_local_error)), accumulated_local_error)
-        plt.savefig("visualization/accumulated_local_error.png")
+        plt.savefig("logs/visualization/accumulated_local_error.png")
         # plt.savefig("")
         plt.clf()
         plt.title("Global error")
         plt.xlabel("passes")
         plt.plot(range(len(global_error)), global_error)
-        plt.savefig("visualization/global_error.png")
+        plt.savefig("logs/visualization/global_error.png")
         plt.clf()
         plt.title("Neural network properties")
         plt.plot(range(len(network_order)), network_order, label="Network order")
         plt.plot(range(len(network_size)), network_size, label="Network size")
         plt.legend()
-        plt.savefig("visualization/network_properties.png")
+        plt.savefig("logs/visualization/network_properties.png")
 
     def plot_network(self, file_path):
         """Plots the GNG network to a file"""
@@ -230,7 +272,7 @@ class GrowingNeuralGas:
                     label="cluster #" + str(i),
                 )
         plt.legend()
-        plt.savefig("visualization/clusters.png")
+        plt.savefig("logs/visualization/clusters.png")
 
     def compute_global_error(self):
         """Calculates the global error of the algorithm"""

@@ -1,10 +1,16 @@
 """Imports necessary modules"""
 
 import random
+import time
 
-from base import create_working_memory, get_data_training
+from base import create_knowledge_base, create_working_memory, get_data_training
 from gng import GrowingNeuralGas
-from utils import aux_folders, export_working_memory_csv, show_working_memory
+from utils import (
+    aux_folders,
+    export_clustered_data,
+    export_knowledge_base_csv,
+    export_working_memory_csv,
+)
 
 
 def run_model(seed, size, reps):
@@ -35,23 +41,36 @@ def train_network(seed, size, rep, reps):
     print("Starting training...\n")
     aux_folders()
 
-    # if len(working_memory) < 100:
-    #     print(f"Error: working_memory has only {len(working_memory)} entries, need at least 100.")
-    #     return
-
+    knowledge_base = []
     selected_instances = random.sample(working_memory, 5)
 
     for i, instance in enumerate(selected_instances, 1):
-        print(f"Iteration {i} of 100")
+        print(f"Iteration {i} of x")
         values = list(instance.values())
         print(f"Chosen instance: {instance}")
 
         print("Fitting neural network...\n")
+        start = time.time()
+
         gng = GrowingNeuralGas(data, seed)
         gng.fit_network(e_b=values[0], e_n=values[1], a_max=values[2], l=values[3], a=values[4], d=values[5], passes=values[6])
+        export_clustered_data(gng.cluster_data(), seed, rep, reps, i)
 
-        print(f"\nFound {gng.number_of_clusters()} clusters.\n")
+        end = time.time()
+
+        if gng.number_of_clusters() > 1:
+            print("\nFound %d clusters.\n" % gng.number_of_clusters())
+            knowledge_base.append(create_knowledge_base(gng.cluster_data(), instance, start, end))
+
+        else:
+            print("\nFound %d cluster.\n" % gng.number_of_clusters())
+            print("Only one cluster found. The training and the parameter set used will be disregarded.\n")
+
         print("-" * 100)
+
+    print("Generating knowledge base...")
+    export_knowledge_base_csv(knowledge_base, seed, rep, reps)
+    print("Done.\n")
 
     print("\nTraining all done.\n")
 
