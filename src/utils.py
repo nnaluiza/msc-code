@@ -8,12 +8,27 @@ import pandas as pd
 from tabulate import tabulate
 
 
-def aux_folders():
+def aux_folders(seed, rep, reps, i):
     """Creates the necessary folders for visualization if they don't already exist"""
 
     if not os.path.exists("logs/visualization"):
         os.makedirs("logs/visualization")
-        os.makedirs("logs/visualization/sequence")
+
+    dir_path = f"logs/visualization/seed-{seed}_reps-{reps}"
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+
+    dir_path_ = f"{dir_path}/rep{rep}"
+    if not os.path.exists(dir_path_):
+        os.makedirs(dir_path_)
+
+    dir_path__ = f"{dir_path_}/i{i}"
+    if not os.path.exists(dir_path__):
+        os.makedirs(dir_path__)
+
+    dir_path___ = f"{dir_path__}/sequence"
+    if not os.path.exists(dir_path___):
+        os.makedirs(dir_path___)
 
 
 def show_working_memory(data):
@@ -119,8 +134,6 @@ def export_clustered_data(data, seed, rep, reps, i):
     dir_path_ = f"{dir_path}/rep{rep}"
     if not os.path.exists(dir_path_):
         os.makedirs(dir_path_)
-
-    # file_name = f"{dir_path_}/knowledge_base_rep{rep}.csv"
 
     file_name = f"{dir_path_}/clustered_data_rep{rep}_i{i}.csv"
 

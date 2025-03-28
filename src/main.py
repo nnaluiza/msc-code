@@ -7,6 +7,7 @@ from base import create_knowledge_base, create_working_memory, get_data_training
 from gng import GrowingNeuralGas
 from utils import (
     aux_folders,
+    export_and_upload_logs,
     export_clustered_data,
     export_knowledge_base_csv,
     export_working_memory_csv,
@@ -39,12 +40,13 @@ def train_network(seed, size, rep, reps):
     print("Done.\n")
 
     print("Starting training...\n")
-    aux_folders()
 
     knowledge_base = []
     selected_instances = random.sample(working_memory, 5)
 
     for i, instance in enumerate(selected_instances, 1):
+        aux_folders(seed, rep, reps, i)
+
         print(f"Iteration {i} of x")
         values = list(instance.values())
         print(f"Chosen instance: {instance}")
@@ -52,7 +54,7 @@ def train_network(seed, size, rep, reps):
         print("Fitting neural network...\n")
         start = time.time()
 
-        gng = GrowingNeuralGas(data, seed)
+        gng = GrowingNeuralGas(data, seed, rep, reps, i)
         gng.fit_network(e_b=values[0], e_n=values[1], a_max=values[2], l=values[3], a=values[4], d=values[5], passes=values[6])
         export_clustered_data(gng.cluster_data(), seed, rep, reps, i)
 
@@ -87,6 +89,15 @@ def main(params):
     reps = int(params[2])
 
     run_model(seed, size, reps)
+
+    # Export and upload logs at the end
+    suffix = f"_seed{seed}_reps{reps}"
+    export_and_upload_logs(
+        base_dir="output",  # Directory where ZIP will be saved locally
+        suffix=suffix,  # Unique identifier for this run
+        folder_id="YOUR_FOLDER_ID",  # Replace with your Google Drive folder ID
+        key_file="service-account-key.json",  # Path to your service account key
+    )
 
 
 if __name__ == "__main__":
