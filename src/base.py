@@ -7,7 +7,9 @@ from scipy.io import arff
 from sklearn import metrics
 from sklearn.preprocessing import StandardScaler
 
+from decision_tree import train_tree
 from params import list_limits, list_params
+from rules import adjust_parameters_based_on_rule, get_positive_rules
 
 
 def get_data_training(name_file):
@@ -86,3 +88,34 @@ def create_knowledge_base(clustered_data, instance, start, end):
         "execution_time": float(format(end - start, ".4f")),
         "class": 1 if float(format(silhouette_avg, ".4f")) >= 0.5 else 0,
     }
+
+
+def split_knowledge_base(
+    knowledge_base,
+    rep,
+    reps,
+    seed,
+):
+    if knowledge_base and knowledge_base[-1]["class"] == 1:
+        rules = train_tree(rep, seed)
+        positive_conditions = get_positive_rules(rules)
+        if positive_conditions:
+            limits = adjust_parameters_based_on_rule(positive_conditions, limits)
+            return limits
+
+
+def get_real_labels(obj, df):
+    """Extracts the actual labels from the data"""
+    obj_tuple = [(tuple(array), value) for array, value in obj]
+    messy_classes = []
+
+    for array_tuple, value in obj_tuple:
+        for i, row in df.iterrows():
+            if "z_t" in df.columns:
+                if (row["x_t"], row["y_t"], row["z_t"]) == array_tuple:
+                    messy_classes.append(float(row["class"].decode("utf-8")))
+                    break
+            elif (row["x_t"], row["y_t"]) == array_tuple:
+                messy_classes.append(float(row["class"].decode("utf-8")))
+                break
+    return messy_classes

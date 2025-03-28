@@ -1,3 +1,9 @@
+"""Imports necessary modules"""
+
+import json
+import os
+
+
 def list_params():
     """Returns a list of parameters used in the GNG algorithm"""
     params = ["e_b", "e_n", "a_max", "l", "a", "d", "passes"]
@@ -6,16 +12,39 @@ def list_params():
 
 def list_limits():
     """Returns a list of parameter limits used in the GNG algorithm"""
-    limits = [
-        (0.0, 1.0),
-        (0.0, 1.0),
-        (0, 10),
-        (1, 30),
-        (0.0, 1.0),
-        (0.0, 1.0),
-        (0, 10),
-    ]
+
+    file_path = "logs/limits/limits.json"
+
+    try:
+        with open(file_path, "r") as file:
+            limits = json.load(file)
+    except FileNotFoundError:
+        limits = [
+            (0.0, 0.5),
+            (0.0, 0.5),
+            (0, 10),
+            (1, 30),
+            (0.0, 1.0),
+            (0.0, 1.0),
+            (0, 10),
+        ]
+
+        with open(file_path, "w") as file:
+            json.dump(limits, file, indent=4)
     return limits
+
+
+def update_limits(new_limits):
+    """Updates the parameter limits used in the GNG algorithm"""
+
+    file_path = "logs/limits/updated_limits.json"
+
+    try:
+        with open(file_path, "w") as file:
+            json.dump(new_limits, file, indent=4)
+        print(f"Updated {file_path} with new limits.")
+    except Exception as e:
+        print(f"Error updating {file_path}: {e}")
 
 
 def show_descriptions():

@@ -1,13 +1,26 @@
 """Imports necessary modules"""
 
 import random
+import sys
 import time
+from datetime import timedelta
+from pathlib import Path
 
-from base import create_knowledge_base, create_working_memory, get_data_training
+src_path = Path(__file__).resolve().parent
+sys.path.insert(0, str(src_path))
+
+from base import (
+    create_knowledge_base,
+    create_working_memory,
+    get_data_training,
+    split_knowledge_base,
+)
+from decision_tree import train_tree
 from gng import GrowingNeuralGas
+from params import update_limits
 from utils import (
     aux_folders,
-    export_and_upload_logs,
+    aux_folders_tree,
     export_clustered_data,
     export_knowledge_base_csv,
     export_working_memory_csv,
@@ -17,12 +30,31 @@ from utils import (
 def run_model(seed, size, reps):
     """Runs train_network a specified number of times"""
 
+    start_time = time.time()
+
     for i in range(1, reps + 1):
         print(f"Rep {i} of {reps} for train model")
         print("-" * 100 + "\n")
         train_network(seed, size, i, reps)
         print(f"Completed rep {i} of {reps}")
         print("-" * 100 + "\n")
+
+    end_time = time.time()
+
+    total_time = end_time - start_time
+    total = str(timedelta(seconds=round(total_time)))
+    total_execution_time = total.split(":")
+
+    """Indicates completion of the training process"""
+    print(
+        "\nTraining all done in ~"
+        + total_execution_time[0]
+        + "h:"
+        + total_execution_time[1]
+        + "m:"
+        + total_execution_time[2]
+        + "s.\n"
+    )
 
 
 def train_network(seed, size, rep, reps):
@@ -42,12 +74,12 @@ def train_network(seed, size, rep, reps):
     print("Starting training...\n")
 
     knowledge_base = []
-    selected_instances = random.sample(working_memory, 5)
+    selected_instances = random.sample(working_memory, 100)
 
     for i, instance in enumerate(selected_instances, 1):
         aux_folders(seed, rep, reps, i)
 
-        print(f"Iteration {i} of x")
+        print(f"Iteration {i} of 100")
         values = list(instance.values())
         print(f"Chosen instance: {instance}")
 
@@ -71,10 +103,22 @@ def train_network(seed, size, rep, reps):
         print("-" * 100)
 
     print("Generating knowledge base...")
-    export_knowledge_base_csv(knowledge_base, seed, rep, reps)
+    knowledge_base_file = export_knowledge_base_csv(knowledge_base, seed, rep, reps)
     print("Done.\n")
 
     print("\nTraining all done.\n")
+
+    print("Starting tree training...\n")
+    tree_path = aux_folders_tree(seed, rep, reps)
+    rules = train_tree(rep, reps, seed, knowledge_base_file, tree_path)
+    for r in rules:
+        print(r)
+    print("Done.\n")
+
+    print("Updating limits...\n")
+    limits_to_update = split_knowledge_base(knowledge_base, rep, reps, seed)
+    update_limits(limits_to_update)
+    print("Done.\n")
 
 
 def main(params):
@@ -89,15 +133,6 @@ def main(params):
     reps = int(params[2])
 
     run_model(seed, size, reps)
-
-    # Export and upload logs at the end
-    suffix = f"_seed{seed}_reps{reps}"
-    export_and_upload_logs(
-        base_dir="output",  # Directory where ZIP will be saved locally
-        suffix=suffix,  # Unique identifier for this run
-        folder_id="YOUR_FOLDER_ID",  # Replace with your Google Drive folder ID
-        key_file="service-account-key.json",  # Path to your service account key
-    )
 
 
 if __name__ == "__main__":

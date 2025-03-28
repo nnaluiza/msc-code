@@ -8,9 +8,14 @@ import pandas as pd
 from tabulate import tabulate
 
 
+def aux_folders_limits():
+    """Creates the necessary folders to store the limits if they don't already exist"""
+    if not os.path.exists("logs/limits"):
+        os.makedirs("logs/limits")
+
+
 def aux_folders(seed, rep, reps, i):
     """Creates the necessary folders for visualization if they don't already exist"""
-
     if not os.path.exists("logs/visualization"):
         os.makedirs("logs/visualization")
 
@@ -120,14 +125,16 @@ def export_knowledge_base_csv(data, seed, rep, reps):
                 ]
             )
 
+    return file_name
+
 
 def export_clustered_data(data, seed, rep, reps, i):
     """Exports the clustered data to a text file, which is solely used for comparison of the results."""
 
-    if not os.path.exists("logs/clusters_log"):
-        os.makedirs("logs/clusters_log")
+    if not os.path.exists("logs/clusters"):
+        os.makedirs("logs/clusters")
 
-    dir_path = f"logs/clusters_log/seed-{seed}_reps-{reps}"
+    dir_path = f"logs/clusters/seed-{seed}_reps-{reps}"
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
@@ -140,3 +147,36 @@ def export_clustered_data(data, seed, rep, reps, i):
     file = io.open(f"{file_name}", "w")
     file.write(str(data))
     file.close()
+
+
+def aux_folders_rules(seed, rep, reps):
+    """Creates the necessary folders for the rules if they don't already exist"""
+    if not os.path.exists("logs/rules"):
+        os.makedirs("logs/rules")
+
+    dir_path = f"logs/rules/seed-{seed}_reps-{reps}"
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+
+    dir_path_ = f"{dir_path}/rep{rep}"
+    if not os.path.exists(dir_path_):
+        os.makedirs(dir_path_)
+
+    file_name = f"{dir_path_}/extracted_rules_rep{rep}.txt"
+    return file_name
+
+
+def aux_folders_tree(seed, rep, reps):
+    """Creates the necessary folders for the tree images if they don't already exist"""
+    if not os.path.exists("logs/tree"):
+        os.makedirs("logs/tree")
+
+    dir_path = f"logs/tree/seed-{seed}_reps-{reps}"
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+
+    dir_path_ = f"{dir_path}/rep{rep}"
+    if not os.path.exists(dir_path_):
+        os.makedirs(dir_path_)
+
+    return dir_path_
