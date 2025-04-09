@@ -8,10 +8,19 @@ import pandas as pd
 from tabulate import tabulate
 
 
-def aux_folders_limits():
+def aux_folders_limits(seed, rep, reps):
     """Creates the necessary folders to store the limits if they don't already exist"""
     if not os.path.exists("logs/limits"):
         os.makedirs("logs/limits")
+
+    dir_path = f"logs/limits/seed-{seed}_reps-{reps}"
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+
+    file_limits_name = f"{dir_path}/limits_rep{rep}.json"
+    file_updated_limits_name = f"{dir_path}/updated_limits_rep{rep}.json"
+
+    return {"limits_file": file_limits_name, "updated_limits_file": file_updated_limits_name}
 
 
 def aux_folders(seed, rep, reps, i):

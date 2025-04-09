@@ -35,11 +35,11 @@ def random_value_generator(limit):
     return random_value
 
 
-def create_working_memory(seed, size):
+def create_working_memory(seed, size, file_limit_path):
     """Generates size random parameter sets and stores them in the working_memory list.
     Each parameter set is a dictionary that maps parameter names to their values"""
 
-    limits = list_limits()
+    limits = list_limits(file_limit_path)
     params = list_params()
     working_memory = []
 
@@ -90,18 +90,15 @@ def create_knowledge_base(clustered_data, instance, start, end):
     }
 
 
-def split_knowledge_base(
-    knowledge_base,
-    rep,
-    reps,
-    seed,
-):
-    if knowledge_base and knowledge_base[-1]["class"] == 1:
-        rules = train_tree(rep, seed)
+def split_knowledge_base(rules, knowledge_base, file_limit_path):
+    """Processes knowledge base and rules to update parameter limits based on positive conditions.
+    Returns updated limits if positive conditions exist."""
+    if knowledge_base:
+        limits = list_limits(file_limit_path)
         positive_conditions = get_positive_rules(rules)
         if positive_conditions:
-            limits = adjust_parameters_based_on_rule(positive_conditions, limits)
-            return limits
+            new_limits = adjust_parameters_based_on_rule(positive_conditions, limits)
+            return new_limits
 
 
 def get_real_labels(obj, df):

@@ -6,6 +6,9 @@ import time
 from datetime import timedelta
 from pathlib import Path
 
+from sklearn.datasets import load_iris
+from sklearn.preprocessing import StandardScaler
+
 src_path = Path(__file__).resolve().parent
 sys.path.insert(0, str(src_path))
 
@@ -20,6 +23,7 @@ from gng import GrowingNeuralGas
 from params import update_limits
 from utils import (
     aux_folders,
+    aux_folders_limits,
     aux_folders_tree,
     export_clustered_data,
     export_knowledge_base_csv,
@@ -63,13 +67,22 @@ def train_network(seed, size, rep, reps):
     random.seed(seed)
 
     print("Generating working memory...")
-    working_memory = create_working_memory(seed, size)
+    files = aux_folders_limits(seed, rep, reps)
+    working_memory = create_working_memory(seed, size, files["limits_file"])
     export_working_memory_csv(working_memory, seed, rep, reps)
     print("Done.\n")
 
-    print("Gathering data...")
-    data = get_data_training("complex8.arff")
-    print("Done.\n")
+    # print("Gathering data...")
+    # data = get_data_training("complex8.arff")
+    # print("Done.\n")
+
+    print("Generating data...")
+    iris = load_iris()
+    data = iris.data
+    # Oversample to 10,000 samples
+    # data = resample(data, n_samples=10000, random_state=42, replace=True)
+    data = StandardScaler().fit_transform(data)
+    print("Done.")
 
     print("Starting training...\n")
 
@@ -116,8 +129,8 @@ def train_network(seed, size, rep, reps):
     print("Done.\n")
 
     print("Updating limits...\n")
-    limits_to_update = split_knowledge_base(knowledge_base, rep, reps, seed)
-    update_limits(limits_to_update)
+    limits_to_update = split_knowledge_base(rules, knowledge_base, files["limits_file"])
+    update_limits(limits_to_update, files["updated_limits_file"])
     print("Done.\n")
 
 

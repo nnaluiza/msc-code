@@ -1,8 +1,7 @@
 """Imports necessary modules"""
 
 import json
-
-from utils import aux_folders_limits
+import os
 
 
 def list_params():
@@ -11,42 +10,64 @@ def list_params():
     return params
 
 
-def list_limits():
+def list_limits(file_limit_path):
     """Returns a list of parameter limits used in the GNG algorithm"""
 
-    aux_folders_limits()
-    file_path = "logs/limits/limits.json"
+    filename = os.path.basename(file_limit_path)
+    rep_num = int(filename.split("rep")[1].split(".")[0]) if "rep" in filename else 1
 
-    try:
-        with open(file_path, "r") as file:
-            limits = json.load(file)
-    except FileNotFoundError:
-        limits = [
-            (0.0, 0.5),
-            (0.0, 0.5),
-            (0, 10),
-            (1, 30),
-            (0.0, 1.0),
-            (0.0, 1.0),
-            (0, 10),
-        ]
+    if rep_num == 1:
+        try:
+            with open(file_limit_path, "r") as file:
+                limits = json.load(file)
+        except FileNotFoundError:
+            limits = [
+                (0.0, 0.5),
+                (0.0, 0.5),
+                (0, 10),
+                (1, 30),
+                (0.0, 1.0),
+                (0.0, 1.0),
+                (1, 10),
+            ]
+            with open(file_limit_path, "w") as file:
+                json.dump(limits, file, indent=4)
+    else:
+        base_dir = os.path.dirname(file_limit_path)
+        prev_rep = rep_num - 1
+        source_file = os.path.join(base_dir, f"updated_limits_rep{prev_rep}.json")
 
-        with open(file_path, "w") as file:
-            json.dump(limits, file, indent=4)
+        try:
+            with open(source_file, "r") as source:
+                limits = json.load(source)
+            with open(file_limit_path, "w") as target:
+                json.dump(limits, target, indent=4)
+        except FileNotFoundError:
+            limits = [
+                (0.0, 0.5),
+                (0.0, 0.5),
+                (0, 10),
+                (1, 30),
+                (0.0, 1.0),
+                (0.0, 1.0),
+                (1, 10),
+            ]
+            with open(file_limit_path, "w") as file:
+                json.dump(limits, file, indent=4)
+
     return limits
 
 
-def update_limits(new_limits):
+def update_limits(new_limits, file_limit_path):
     """Updates the parameter limits used in the GNG algorithm"""
 
-    file_path = "logs/limits/updated_limits.json"
-
     try:
-        with open(file_path, "w") as file:
+        print(f"jao newLimits: {new_limits}")
+        with open(file_limit_path, "w") as file:
             json.dump(new_limits, file, indent=4)
-        print(f"Updated {file_path} with new limits.")
+        print(f"Updated {file_limit_path} with new limits.")
     except Exception as e:
-        print(f"Error updating {file_path}: {e}")
+        print(f"Error updating {file_limit_path}: {e}")
 
 
 def show_descriptions():
@@ -91,7 +112,7 @@ def show_descriptions():
         {
             "param": "passes",
             "description": "Number of iterations within the algorithm",
-            "min_value": 0,
+            "min_value": 1,
             "max_value": 10,
         },
     ]
