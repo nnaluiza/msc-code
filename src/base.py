@@ -2,70 +2,161 @@
 
 import random
 
+import numpy as np
 import pandas as pd
 from scipy.io import arff
 from sklearn import metrics
+from sklearn.datasets import load_iris, make_blobs, make_circles, make_moons
 from sklearn.preprocessing import StandardScaler
 
-from decision_tree import train_tree
 from params import list_limits, list_params
 from rules import adjust_parameters_based_on_rule, get_positive_rules
 
 
-def get_data_training(name_file):
-    """Reads and treats dataset files for network training"""
+def get_data_training(dataset_name):
+    """Reads and processes dataset based on the provided dataset name.
+    Returns standardized data as a numpy array and true labels if available."""
 
-    data = arff.loadarff("datasets/" + name_file)
-    base = pd.DataFrame(data[0])
+    true_labels = None
 
-    if "z" in base.columns:
-        dataTrain = base[["x", "y", "z"]]
+    if dataset_name.endswith(".arff"):
+        data = arff.loadarff("datasets/" + dataset_name)
+        base = pd.DataFrame(data[0])
+
+        if "z" in base.columns:
+            dataTrain = base[["x", "y", "z"]]
+        else:
+            dataTrain = base[["x", "y"]]
+
+        if "class" in base.columns:
+            true_labels = base["class"].apply(lambda x: float(x.decode("utf-8")) if isinstance(x, bytes) else float(x)).values
+
+        data = StandardScaler().fit_transform(dataTrain)
+        return data, true_labels
+
     else:
-        dataTrain = base[["x", "y"]]
+        if dataset_name == "iris":
+            dataset = load_iris()
+            data = dataset.data
+            true_labels = dataset.target
+        elif dataset_name == "moons":
+            data, true_labels = make_moons(n_samples=1000, noise=0.1, random_state=42)
+        elif dataset_name == "blobs":
+            data, true_labels = make_blobs(n_samples=1000, centers=3, random_state=42)
+        elif dataset_name == "circles":
+            data, true_labels = make_circles(n_samples=2000, noise=0.05, factor=0.3, random_state=42)
+        else:
+            raise ValueError(
+                f"Unsupported dataset: {dataset_name}. Supported datasets: .arff files, 'iris', 'moons', 'blobs', 'circles'"
+            )
 
-    data = StandardScaler().fit_transform(dataTrain)
-    return data
+        data = StandardScaler().fit_transform(data)
+        return data, true_labels
 
 
-def random_value_generator(limit):
+def random_value_generator(limit, is_discrete=False):
     """Generates a random value between the lower and upper limits of a given param"""
-
     lower_limit, upper_limit = limit
-    random_value = random.uniform(lower_limit, upper_limit)
-    return random_value
+    if is_discrete:
+        return random.randint(int(lower_limit), int(upper_limit))
+    else:
+        random_value = random.uniform(lower_limit, upper_limit)
+        return float(format(random_value, ".4f"))
 
 
 def create_working_memory(seed, size, file_limit_path):
     """Generates size random parameter sets and stores them in the working_memory list.
-    Each parameter set is a dictionary that maps parameter names to their values"""
+    Each parameter set is a dictionary that maps parameter names to their values."""
 
     limits = list_limits(file_limit_path)
     params = list_params()
-    working_memory = []
 
-    """Specifies the random seed to guarantee the generation of the same values every time"""
-    random.seed(seed)
+    if len(limits) != len(params):
+        raise ValueError(
+            f"Number of limits ({len(limits)}) does not match number of parameters ({len(params)}). "
+            f"Parameters: {params}, Limits: {limits}"
+        )
+
+    discrete_params = ["a_max", "l", "passes"]
+    working_memory = []
 
     for i in range(int(size)):
         random_values = []
-        for limit in limits:
-            random_value = random_value_generator(limit)
-
-            param = params[len(random_values)]
-            if param in ["a_max", "l", "passes"]:
-                random_value = int(format(random_value, ".0f"))
-            else:
-                random_value = float(format(random_value, ".4f"))
-
+        for j, limit in enumerate(limits):
+            param = params[j]
+            is_discrete = param in discrete_params
+            random_value = random_value_generator(limit, is_discrete=is_discrete)
             random_values.append(random_value)
-            dict_value = dict(zip(params, random_values))
 
+        dict_value = dict(zip(params, random_values))
         working_memory.append(dict_value)
 
     return working_memory
 
 
-def create_knowledge_base(clustered_data, instance, start, end):
+def compute_clustering_score(silhouette_avg, davies_bouldin_index, calinski_harabasz_index, adjusted_rand_index):
+    """Computes a combined clustering score based on four metrics and classifies the parameter set as good (1) or bad (0)."""
+
+    # Step 1: Normalize the metrics to [0, 1] where higher is better
+
+    # Silhouette Score: -1 to 1 -> 0 to 1
+    normalized_silhouette = (silhouette_avg + 1) / 2
+
+    # Davies-Bouldin Index: 0 to infinity (lower is better) -> 0 to 1 (higher is better)
+    # Use exponential decay to invert: e^(-DBI)
+    normalized_davies_bouldin = np.exp(-davies_bouldin_index)
+
+    # Calinski-Harabasz Index: 0 to infinity (higher is better) -> 0 to 1
+    # Use logarithmic scaling with an assumed max value of 1000
+
+    max_calinski = 1000  # Reasonable upper bound for normalization
+    log_calinski = np.log(calinski_harabasz_index + 1)
+    log_max = np.log(max_calinski + 1)
+    log_min = np.log(1 + 1)  # Minimum value (when calinski_harabasz_index = 0)
+    normalized_calinski_harabasz = (log_calinski - log_min) / (log_max - log_min)
+    normalized_calinski_harabasz = np.clip(normalized_calinski_harabasz, 0, 1)  # Ensure within [0, 1]
+
+    # Adjusted Rand Index: -1 to 1 -> 0 to 1 (or None)
+    normalized_adjusted_rand = None
+    if adjusted_rand_index is not None:
+        normalized_adjusted_rand = (adjusted_rand_index + 1) / 2
+
+    # Step 2: Define weights for each metric
+    weights = {"silhouette": 0.3, "davies_bouldin": 0.2, "calinski_harabasz": 0.2, "adjusted_rand": 0.3}
+
+    # Step 3: Compute the combined score
+    if adjusted_rand_index is None:
+        # Redistribute the weight of adjusted_rand_index to the other metrics
+        total_weight = weights["silhouette"] + weights["davies_bouldin"] + weights["calinski_harabasz"]
+        scale_factor = 1 / total_weight
+        weight_silhouette = weights["silhouette"] * scale_factor
+        weight_davies_bouldin = weights["davies_bouldin"] * scale_factor
+        weight_calinski_harabasz = weights["calinski_harabasz"] * scale_factor
+
+        combined_score = (
+            weight_silhouette * normalized_silhouette
+            + weight_davies_bouldin * normalized_davies_bouldin
+            + weight_calinski_harabasz * normalized_calinski_harabasz
+        )
+    else:
+        # Use the original weights
+        combined_score = (
+            weights["silhouette"] * normalized_silhouette
+            + weights["davies_bouldin"] * normalized_davies_bouldin
+            + weights["calinski_harabasz"] * normalized_calinski_harabasz
+            + weights["adjusted_rand"] * normalized_adjusted_rand
+        )
+
+    # Step 4: Classify based on the score
+    threshold = 0.5  # You can adjust this threshold
+    class_label = 1 if combined_score >= threshold else 0
+
+    return combined_score, class_label
+
+
+def create_knowledge_base(clustered_data, instance, start, end, true_labels=None):
+    """Creates a knowledge base entry with clustering evaluation metrics."""
+
     labels = []
     data = []
 
@@ -74,7 +165,21 @@ def create_knowledge_base(clustered_data, instance, start, end):
         label = item[1]
         labels.append(label)
 
+    data = np.array(data)
+    labels = np.array(labels)
+
     silhouette_avg = metrics.silhouette_score(data, labels, metric="euclidean")
+    davies_bouldin = metrics.davies_bouldin_score(data, labels)
+    calinski_harabasz = metrics.calinski_harabasz_score(data, labels)
+
+    adjusted_rand = None
+    if true_labels is not None:
+        if len(true_labels) == len(labels):
+            adjusted_rand = metrics.adjusted_rand_score(true_labels, labels)
+        else:
+            print("Warning: True labels length does not match clustered data length. ARI will be None.")
+
+    combined_score, class_label = compute_clustering_score(silhouette_avg, davies_bouldin, calinski_harabasz, adjusted_rand)
 
     return {
         "e_b": instance["e_b"],
@@ -85,14 +190,17 @@ def create_knowledge_base(clustered_data, instance, start, end):
         "d": instance["d"],
         "passes": instance["passes"],
         "silhouette_avg": float(format(silhouette_avg, ".4f")),
+        "davies_bouldin_index": float(format(davies_bouldin, ".4f")),
+        "calinski_harabasz_index": float(format(calinski_harabasz, ".4f")),
+        "adjusted_rand_index": float(format(adjusted_rand, ".4f")) if adjusted_rand is not None else None,
         "execution_time": float(format(end - start, ".4f")),
-        "class": 1 if float(format(silhouette_avg, ".4f")) >= 0.5 else 0,
+        "combined_score": float(format(combined_score, ".4f")),
+        "class": class_label,
     }
 
 
 def split_knowledge_base(rules, knowledge_base, file_limit_path):
-    """Processes knowledge base and rules to update parameter limits based on positive conditions.
-    Returns updated limits if positive conditions exist."""
+    """Processes knowledge base and rules to update parameter limits."""
     if knowledge_base:
         limits = list_limits(file_limit_path)
         positive_conditions = get_positive_rules(rules)

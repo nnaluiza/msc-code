@@ -1,44 +1,44 @@
 """Imports necessary modules"""
 
-import graphviz
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from sklearn.tree import DecisionTreeClassifier, export_graphviz, export_text, plot_tree
+from sklearn.tree import DecisionTreeClassifier, export_text, plot_tree
 from sklearn.tree._tree import TREE_UNDEFINED
 
 from rules import extract_rules
-from utils import aux_folders_rules, aux_folders_tree
+from utils import aux_folders_rules
 
 
 def train_tree(rep, reps, seed, knowledge_base_file, tree_log_path):
-    """Trains a decision tree classifier"""
+    """Trains a decision tree classifier using only the GNG parameters and class."""
     clf = DecisionTreeClassifier(random_state=seed, min_samples_leaf=3, criterion="gini")
 
     df = pd.read_csv(knowledge_base_file, delimiter=",", skiprows=2)
-    df.head()
 
-    X = df.drop(["class", "silhouette_avg", "execution_time"], axis=1)
+    metrics_to_exclude = [
+        "silhouette_avg",
+        "davies_bouldin_index",
+        "calinski_harabasz_index",
+        "adjusted_rand_index",
+        "execution_time",
+        "class",
+    ]
+
+    X = df.drop(metrics_to_exclude, axis=1)
     y = df["class"]
 
     clf.fit(X, y)
 
-    names = list(
-        filter(
-            lambda x: x not in ["class", "silhouette_avg", "execution_time"],
-            X.columns,
-        )
-    )
+    names = list(X.columns)
     classes = ["1", "0"]
 
     show_tree(clf, names, classes, rep, tree_log_path)
 
-    """Generate text representation of the trained decision tree"""
     text_representation = export_text(clf, feature_names=names)
     print(text_representation)
     print("-" * 50)
 
-    """Get rules extracted from the decision tree"""
     return get_rules(clf, names, classes, rep, reps, seed)
 
 

@@ -28,8 +28,7 @@ def run_script():
 
 if __name__ == "__main__":
     """Entry point of the script. Checks for command-line arguments and initiates the script execution."""
-    if len(sys.argv) < 2:
-        print("Usage: python run.py [param1] [param2] ...")
+    if len(sys.argv) < 4:
         sys.exit(1)
 
     run_script()

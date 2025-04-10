@@ -4,13 +4,6 @@ import random
 import sys
 import time
 from datetime import timedelta
-from pathlib import Path
-
-from sklearn.datasets import load_iris
-from sklearn.preprocessing import StandardScaler
-
-src_path = Path(__file__).resolve().parent
-sys.path.insert(0, str(src_path))
 
 from base import (
     create_knowledge_base,
@@ -31,15 +24,16 @@ from utils import (
 )
 
 
-def run_model(seed, size, reps):
+def run_model(seed, size, reps, dataset_name):
     """Runs train_network a specified number of times"""
+    random.seed(seed)
 
     start_time = time.time()
 
     for i in range(1, reps + 1):
         print(f"Rep {i} of {reps} for train model")
         print("-" * 100 + "\n")
-        train_network(seed, size, i, reps)
+        train_network(seed, size, i, reps, dataset_name)
         print(f"Completed rep {i} of {reps}")
         print("-" * 100 + "\n")
 
@@ -49,7 +43,6 @@ def run_model(seed, size, reps):
     total = str(timedelta(seconds=round(total_time)))
     total_execution_time = total.split(":")
 
-    """Indicates completion of the training process"""
     print(
         "\nTraining all done in ~"
         + total_execution_time[0]
@@ -61,38 +54,30 @@ def run_model(seed, size, reps):
     )
 
 
-def train_network(seed, size, rep, reps):
-    """Specifies the random seed for maintaining repeatability in training."""
+def train_network(seed, size, rep, reps, dataset_name):
+    """Trains the network for a single repetition."""
 
-    random.seed(seed)
+    rep_seed = seed + rep
 
     print("Generating working memory...")
     files = aux_folders_limits(seed, rep, reps)
-    working_memory = create_working_memory(seed, size, files["limits_file"])
+    working_memory = create_working_memory(rep_seed, size, files["limits_file"])
     export_working_memory_csv(working_memory, seed, rep, reps)
     print("Done.\n")
 
-    # print("Gathering data...")
-    # data = get_data_training("complex8.arff")
-    # print("Done.\n")
-
-    print("Generating data...")
-    iris = load_iris()
-    data = iris.data
-    # Oversample to 10,000 samples
-    # data = resample(data, n_samples=10000, random_state=42, replace=True)
-    data = StandardScaler().fit_transform(data)
-    print("Done.")
+    print("Gathering data...")
+    data, true_labels = get_data_training(dataset_name)
+    # print(f"Loaded dataset '{dataset_name}' with shape: {data.shape}")
+    # print(f"True labels available: {true_labels is not None}")
+    print("Done.\n")
 
     print("Starting training...\n")
 
     knowledge_base = []
-    selected_instances = random.sample(working_memory, 100)
-
-    for i, instance in enumerate(selected_instances, 1):
+    for i, instance in enumerate(working_memory, 1):
         aux_folders(seed, rep, reps, i)
 
-        print(f"Iteration {i} of 100")
+        print(f"Iteration {i} of {len(working_memory)}")
         values = list(instance.values())
         print(f"Chosen instance: {instance}")
 
@@ -107,8 +92,7 @@ def train_network(seed, size, rep, reps):
 
         if gng.number_of_clusters() > 1:
             print("\nFound %d clusters.\n" % gng.number_of_clusters())
-            knowledge_base.append(create_knowledge_base(gng.cluster_data(), instance, start, end))
-
+            knowledge_base.append(create_knowledge_base(gng.cluster_data(), instance, start, end, true_labels=true_labels))
         else:
             print("\nFound %d cluster.\n" % gng.number_of_clusters())
             print("Only one cluster found. The training and the parameter set used will be disregarded.\n")
@@ -136,16 +120,18 @@ def train_network(seed, size, rep, reps):
 
 def main(params):
     """Parses command-line parameters and initiates the model training process."""
-    if len(params) != 3:
-        print("Error: Expected 3 parameters (seed, size, reps)")
-        print("Usage: python run.py <seed> <size> <reps>")
+    if len(params) != 4:
+        print("Error: Expected 4 parameters (seed, size, reps, dataset_name)")
+        print("Usage: python run.py <seed> <size> <reps> <dataset_name>")
+        print("Example: python run.py 42 1000 5 iris")
         return
 
     seed = int(params[0])
     size = int(params[1])
     reps = int(params[2])
+    dataset_name = params[3]
 
-    run_model(seed, size, reps)
+    run_model(seed, size, reps, dataset_name)
 
 
 if __name__ == "__main__":

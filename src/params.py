@@ -62,10 +62,9 @@ def update_limits(new_limits, file_limit_path):
     """Updates the parameter limits used in the GNG algorithm"""
 
     try:
-        print(f"jao newLimits: {new_limits}")
         with open(file_limit_path, "w") as file:
             json.dump(new_limits, file, indent=4)
-        print(f"Updated {file_limit_path} with new limits.")
+        # print(f"Updated {file_limit_path} with new limits.")
     except Exception as e:
         print(f"Error updating {file_limit_path}: {e}")
 

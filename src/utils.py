@@ -113,7 +113,11 @@ def export_knowledge_base_csv(data, seed, rep, reps):
                 "d",
                 "passes",
                 "silhouette_avg",
+                "davies_bouldin_index",
+                "calinski_harabasz_index",
+                "adjusted_rand_index",
                 "execution_time",
+                "combined_score",
                 "class",
             ]
         )
@@ -129,7 +133,11 @@ def export_knowledge_base_csv(data, seed, rep, reps):
                     instance["d"],
                     instance["passes"],
                     instance["silhouette_avg"],
+                    instance["davies_bouldin_index"],
+                    instance["calinski_harabasz_index"],
+                    instance["adjusted_rand_index"],
                     instance["execution_time"],
+                    instance["combined_score"],
                     instance["class"],
                 ]
             )
@@ -167,11 +175,7 @@ def aux_folders_rules(seed, rep, reps):
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
-    dir_path_ = f"{dir_path}/rep{rep}"
-    if not os.path.exists(dir_path_):
-        os.makedirs(dir_path_)
-
-    file_name = f"{dir_path_}/extracted_rules_rep{rep}.txt"
+    file_name = f"{dir_path}/extracted_rules_rep{rep}.txt"
     return file_name
 
 
