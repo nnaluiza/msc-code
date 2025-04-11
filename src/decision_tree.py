@@ -17,6 +17,7 @@ def train_tree(rep, reps, seed, knowledge_base_file, tree_log_path):
     df = pd.read_csv(knowledge_base_file, delimiter=",", skiprows=2)
 
     metrics_to_exclude = [
+        "clusters_number",
         "silhouette_avg",
         "davies_bouldin_index",
         "calinski_harabasz_index",

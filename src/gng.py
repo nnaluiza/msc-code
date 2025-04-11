@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 from scipy import spatial
+from scipy.stats import pearsonr
 from sklearn import decomposition
 
 """
@@ -19,23 +20,48 @@ Information Processing Systems 7, 1995.
 class GrowingNeuralGas:
     """GrowingNeuralGas class"""
 
-    def __init__(self, input_data, seed, rep, reps, i):
+    def __init__(self, input_data, seed, rep, reps, i, distance_metric="euclidean"):
         """Initializes the GrowingNeuralGas class"""
+        # Ensure input_data is a NumPy array
+        if not isinstance(input_data, np.ndarray):
+            self.data = np.array(input_data, dtype=float)
+        else:
+            self.data = input_data.astype(float)
         self.network = None
-        self.data = input_data
         self.units_created = 0
         self.seed = seed
         self.rep = rep
         self.reps = reps
         self.i = i
+        # Validate and set distance metric
+        valid_metrics = ["euclidean", "cityblock", "cosine", "pearson"]
+        if distance_metric not in valid_metrics:
+            raise ValueError(f"distance_metric must be one of {valid_metrics}")
+        self.distance_metric = distance_metric
         plt.style.use("ggplot")
+
+    def compute_distance(self, vector1, vector2):
+        """Computes distance between two vectors based on the specified metric"""
+        # Convert inputs to NumPy arrays if they aren't already
+        vector1 = np.array(vector1, dtype=float) if not isinstance(vector1, np.ndarray) else vector1
+        vector2 = np.array(vector2, dtype=float) if not isinstance(vector2, np.ndarray) else vector2
+        try:
+            if self.distance_metric == "pearson":
+                # Pearson correlation as a distance: 1 - correlation
+                corr, _ = pearsonr(vector1, vector2)
+                return 1 - corr
+            else:
+                return spatial.distance.cdist(vector1.reshape(1, -1), vector2.reshape(1, -1), metric=self.distance_metric)[0][0]
+        except ValueError:
+            # Handle cases like constant vectors for pearson or invalid inputs
+            return 1.0  # Default distance for edge cases
 
     def find_nearest_units(self, observation):
         """Finds the nearest unit to a given observation"""
         distance = []
         for u, attributes in self.network.nodes(data=True):
             vector = attributes["vector"]
-            dist = spatial.distance.euclidean(vector, observation)
+            dist = self.compute_distance(vector, observation)
             distance.append((u, dist))
         distance.sort(key=lambda x: x[1])
         ranking = [u for u, dist in distance]
@@ -70,8 +96,8 @@ class GrowingNeuralGas:
         self.units_created = 0
         np.random.seed(self.seed)
         """ 0. start with two units a and b at random position w_a and w_b """
-        w_a = [np.random.uniform(-2, 2) for _ in range(np.shape(self.data)[1])]
-        w_b = [np.random.uniform(-2, 2) for _ in range(np.shape(self.data)[1])]
+        w_a = np.random.uniform(-2, 2, size=np.shape(self.data)[1])
+        w_b = np.random.uniform(-2, 2, size=np.shape(self.data)[1])
         self.network = nx.Graph()
         self.e_b = e_b
         self.e_n = e_n
@@ -83,7 +109,6 @@ class GrowingNeuralGas:
         sequence = 0
 
         """Initialize the start time for the training process"""
-        start_time = 0
         start_time = time.time()
 
         max_vector_value = 1e6
@@ -91,7 +116,6 @@ class GrowingNeuralGas:
 
         for p in range(passes):
             """Initialize the start time of the current iteration"""
-            start = 0
             start = time.time()
 
             print("   Pass #%d" % (p + 1))
@@ -106,7 +130,7 @@ class GrowingNeuralGas:
                 for u, v, attributes in self.network.edges(data=True, nbunch=[s_1]):
                     self.network.add_edge(u, v, age=attributes["age"] + 1)
                 """ 4. Add the squared distance between the observation and the nearest unit in input space """
-                error_increment = spatial.distance.euclidean(observation, self.network.nodes[s_1]["vector"]) ** 2
+                error_increment = self.compute_distance(observation, self.network.nodes[s_1]["vector"]) ** 2
                 self.network.nodes[s_1]["error"] += error_increment
 
                 self.network.nodes[s_1]["error"] = min(self.network.nodes[s_1]["error"], max_error_value)
@@ -188,8 +212,6 @@ class GrowingNeuralGas:
                 for u in self.network.nodes():
                     self.network.nodes[u]["error"] *= d
                     self.network.nodes[u]["error"] = min(self.network.nodes[u]["error"], max_error_value)
-                    if self.network.degree(nbunch=[u]) == 0:
-                        print(u)
             global_error.append(self.compute_global_error())
 
             end = time.time()
@@ -334,5 +356,6 @@ class GrowingNeuralGas:
         for observation in self.data:
             nearest_units = self.find_nearest_units(observation)
             s_1 = nearest_units[0]
-            global_error += spatial.distance.euclidean(observation, self.network.nodes[s_1]["vector"]) ** 2
+            dist = self.compute_distance(observation, self.network.nodes[s_1]["vector"])
+            global_error += dist**2
         return global_error

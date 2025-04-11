@@ -24,7 +24,7 @@ from utils import (
 )
 
 
-def run_model(seed, size, reps, dataset_name):
+def run_model(seed, size, reps, distance_metric, dataset_name):
     """Runs train_network a specified number of times"""
     random.seed(seed)
 
@@ -33,7 +33,7 @@ def run_model(seed, size, reps, dataset_name):
     for i in range(1, reps + 1):
         print(f"Rep {i} of {reps} for train model")
         print("-" * 100 + "\n")
-        train_network(seed, size, i, reps, dataset_name)
+        train_network(seed, size, i, reps, distance_metric, dataset_name)
         print(f"Completed rep {i} of {reps}")
         print("-" * 100 + "\n")
 
@@ -54,7 +54,7 @@ def run_model(seed, size, reps, dataset_name):
     )
 
 
-def train_network(seed, size, rep, reps, dataset_name):
+def train_network(seed, size, rep, reps, distance_metric, dataset_name):
     """Trains the network for a single repetition."""
 
     rep_seed = seed + rep
@@ -67,8 +67,6 @@ def train_network(seed, size, rep, reps, dataset_name):
 
     print("Gathering data...")
     data, true_labels = get_data_training(dataset_name)
-    # print(f"Loaded dataset '{dataset_name}' with shape: {data.shape}")
-    # print(f"True labels available: {true_labels is not None}")
     print("Done.\n")
 
     print("Starting training...\n")
@@ -85,22 +83,23 @@ def train_network(seed, size, rep, reps, dataset_name):
         print("Fitting neural network...\n")
         start = time.time()
 
-        gng = GrowingNeuralGas(data, seed, rep, reps, i)
+        gng = GrowingNeuralGas(data, seed, rep, reps, i, distance_metric=distance_metric)
         gng.fit_network(e_b=values[0], e_n=values[1], a_max=values[2], l=values[3], a=values[4], d=values[5], passes=values[6])
         export_clustered_data(gng.cluster_data(), seed, rep, reps, i)
 
         end = time.time()
 
         global_error = gng.compute_global_error()
+        num_clusters = gng.number_of_clusters()
 
-        if gng.number_of_clusters() > 1:
-            print("\nFound %d clusters.\n" % gng.number_of_clusters())
+        if num_clusters > 1:
+            print("\nFound %d clusters.\n" % num_clusters)
             knowledge_entry = create_knowledge_base(
-                gng.cluster_data(), instance, start, end, global_error, true_labels=true_labels
+                gng.cluster_data(), instance, start, end, global_error, num_clusters, true_labels
             )
             export_knowledge_base_csv(knowledge_entry, seed, rep, reps, append=True)
         else:
-            print("\nFound %d cluster.\n" % gng.number_of_clusters())
+            print("\nFound %d cluster.\n" % num_clusters)
             print("Only one cluster found. The training and the parameter set used will be disregarded.\n")
 
         print("-" * 100)
@@ -122,21 +121,20 @@ def train_network(seed, size, rep, reps, dataset_name):
 
 def main(params):
     """Parses command-line parameters and initiates the model training process."""
-    if len(params) != 4:
-        print("Error: Expected 4 parameters (seed, size, reps, dataset_name)")
-        print("Usage: python run.py <seed> <size> <reps> <dataset_name>")
-        print("Example: python run.py 42 1000 5 iris")
+    if len(params) != 5:
+        print("Error: Expected 5 parameters (seed, size, reps, distance_metric, dataset_name)")
+        print("Usage: python run.py <seed> <size> <reps> <distance_metric> <dataset_name>")
+        print("Example: python run.py 42 1000 5 euclidean iris")
         return
 
     seed = int(params[0])
     size = int(params[1])
     reps = int(params[2])
-    dataset_name = params[3]
+    distance_metric = params[3]
+    dataset_name = params[4]
 
-    run_model(seed, size, reps, dataset_name)
+    run_model(seed, size, reps, distance_metric, dataset_name)
 
 
 if __name__ == "__main__":
-    import sys
-
     main(sys.argv[1:])

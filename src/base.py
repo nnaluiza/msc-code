@@ -159,8 +159,8 @@ def compute_clustering_score(silhouette_avg, davies_bouldin_index, calinski_hara
     return combined_score, class_label
 
 
-def create_knowledge_base(clustered_data, instance, start, end, global_error, true_labels=None):
-    """Creates a knowledge base entry with clustering evaluation metrics and global error."""
+def create_knowledge_base(clustered_data, instance, start, end, global_error, num_clusters, true_labels=None):
+    """Creates a knowledge base entry with clustering evaluation metrics, global error, and number of clusters."""
 
     labels = []
     data = []
@@ -196,6 +196,7 @@ def create_knowledge_base(clustered_data, instance, start, end, global_error, tr
         "a": instance["a"],
         "d": instance["d"],
         "passes": instance["passes"],
+        "clusters_number": int(num_clusters),
         "silhouette_avg": float(format(silhouette_avg, ".4f")),
         "davies_bouldin_index": float(format(davies_bouldin, ".4f")),
         "calinski_harabasz_index": float(format(calinski_harabasz, ".4f")),

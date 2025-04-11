@@ -28,7 +28,8 @@ def run_script():
 
 if __name__ == "__main__":
     """Entry point of the script. Checks for command-line arguments and initiates the script execution."""
-    if len(sys.argv) < 4:
+    if len(sys.argv) < 5:
+        print("Error: Expected 5 parameters (seed, size, reps, distance_metric, dataset_name)")
         sys.exit(1)
 
     run_script()
