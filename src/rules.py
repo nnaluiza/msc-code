@@ -84,6 +84,4 @@ def adjust_parameters_based_on_rule(positive_conditions, limits):
         if new_limits[idx][0] > new_limits[idx][1]:
             new_limits[idx] = (new_limits[idx][1], new_limits[idx][0])
 
-        print(f"Adjusted {param}: {new_limits[idx]}")
-
     return new_limits

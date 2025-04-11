@@ -94,68 +94,73 @@ def create_working_memory(seed, size, file_limit_path):
     return working_memory
 
 
-def compute_clustering_score(silhouette_avg, davies_bouldin_index, calinski_harabasz_index, adjusted_rand_index):
-    """Computes a combined clustering score based on four metrics and classifies the parameter set as good (1) or bad (0)."""
-
-    # Step 1: Normalize the metrics to [0, 1] where higher is better
+def compute_clustering_score(silhouette_avg, davies_bouldin_index, calinski_harabasz_index, adjusted_rand_index, global_error):
+    """Computes a combined clustering score based on five metrics and classifies the parameter set as good (1) or bad (0)."""
+    # Normalize the metrics to [0, 1] where higher is better
 
     # Silhouette Score: -1 to 1 -> 0 to 1
     normalized_silhouette = (silhouette_avg + 1) / 2
 
     # Davies-Bouldin Index: 0 to infinity (lower is better) -> 0 to 1 (higher is better)
-    # Use exponential decay to invert: e^(-DBI)
     normalized_davies_bouldin = np.exp(-davies_bouldin_index)
 
     # Calinski-Harabasz Index: 0 to infinity (higher is better) -> 0 to 1
-    # Use logarithmic scaling with an assumed max value of 1000
-
-    max_calinski = 1000  # Reasonable upper bound for normalization
+    max_calinski = 300
     log_calinski = np.log(calinski_harabasz_index + 1)
     log_max = np.log(max_calinski + 1)
-    log_min = np.log(1 + 1)  # Minimum value (when calinski_harabasz_index = 0)
+    log_min = np.log(1 + 1)
     normalized_calinski_harabasz = (log_calinski - log_min) / (log_max - log_min)
-    normalized_calinski_harabasz = np.clip(normalized_calinski_harabasz, 0, 1)  # Ensure within [0, 1]
+    normalized_calinski_harabasz = np.clip(normalized_calinski_harabasz, 0, 1)
 
     # Adjusted Rand Index: -1 to 1 -> 0 to 1 (or None)
     normalized_adjusted_rand = None
     if adjusted_rand_index is not None:
         normalized_adjusted_rand = (adjusted_rand_index + 1) / 2
 
-    # Step 2: Define weights for each metric
-    weights = {"silhouette": 0.3, "davies_bouldin": 0.2, "calinski_harabasz": 0.2, "adjusted_rand": 0.3}
+    # Global Error: 0 to infinity (lower is better) -> 0 to 1 (higher is better)
+    max_global_error = 500
+    normalized_global_error = np.exp(-global_error / max_global_error)
+    normalized_global_error = np.clip(normalized_global_error, 0, 1)
 
-    # Step 3: Compute the combined score
+    weights = {
+        "silhouette": 0.20,
+        "davies_bouldin": 0.15,
+        "calinski_harabasz": 0.15,
+        "adjusted_rand": 0.25,
+        "global_error": 0.25,
+    }
+
     if adjusted_rand_index is None:
-        # Redistribute the weight of adjusted_rand_index to the other metrics
-        total_weight = weights["silhouette"] + weights["davies_bouldin"] + weights["calinski_harabasz"]
+        total_weight = weights["silhouette"] + weights["davies_bouldin"] + weights["calinski_harabasz"] + weights["global_error"]
         scale_factor = 1 / total_weight
         weight_silhouette = weights["silhouette"] * scale_factor
         weight_davies_bouldin = weights["davies_bouldin"] * scale_factor
         weight_calinski_harabasz = weights["calinski_harabasz"] * scale_factor
+        weight_global_error = weights["global_error"] * scale_factor
 
         combined_score = (
             weight_silhouette * normalized_silhouette
             + weight_davies_bouldin * normalized_davies_bouldin
             + weight_calinski_harabasz * normalized_calinski_harabasz
+            + weight_global_error * normalized_global_error
         )
     else:
-        # Use the original weights
         combined_score = (
             weights["silhouette"] * normalized_silhouette
             + weights["davies_bouldin"] * normalized_davies_bouldin
             + weights["calinski_harabasz"] * normalized_calinski_harabasz
             + weights["adjusted_rand"] * normalized_adjusted_rand
+            + weights["global_error"] * normalized_global_error
         )
 
-    # Step 4: Classify based on the score
-    threshold = 0.5  # You can adjust this threshold
+    threshold = 0.65
     class_label = 1 if combined_score >= threshold else 0
 
     return combined_score, class_label
 
 
-def create_knowledge_base(clustered_data, instance, start, end, true_labels=None):
-    """Creates a knowledge base entry with clustering evaluation metrics."""
+def create_knowledge_base(clustered_data, instance, start, end, global_error, true_labels=None):
+    """Creates a knowledge base entry with clustering evaluation metrics and global error."""
 
     labels = []
     data = []
@@ -179,7 +184,9 @@ def create_knowledge_base(clustered_data, instance, start, end, true_labels=None
         else:
             print("Warning: True labels length does not match clustered data length. ARI will be None.")
 
-    combined_score, class_label = compute_clustering_score(silhouette_avg, davies_bouldin, calinski_harabasz, adjusted_rand)
+    combined_score, class_label = compute_clustering_score(
+        silhouette_avg, davies_bouldin, calinski_harabasz, adjusted_rand, global_error
+    )
 
     return {
         "e_b": instance["e_b"],
@@ -193,14 +200,16 @@ def create_knowledge_base(clustered_data, instance, start, end, true_labels=None
         "davies_bouldin_index": float(format(davies_bouldin, ".4f")),
         "calinski_harabasz_index": float(format(calinski_harabasz, ".4f")),
         "adjusted_rand_index": float(format(adjusted_rand, ".4f")) if adjusted_rand is not None else None,
-        "execution_time": float(format(end - start, ".4f")),
+        "global_error": float(format(global_error, ".4f")),
         "combined_score": float(format(combined_score, ".4f")),
+        "execution_time": float(format(end - start, ".4f")),
         "class": class_label,
     }
 
 
-def split_knowledge_base(rules, knowledge_base, file_limit_path):
+def split_knowledge_base(rules, knowledge_base_file, file_limit_path):
     """Processes knowledge base and rules to update parameter limits."""
+    knowledge_base = pd.read_csv(knowledge_base_file, delimiter=",", skiprows=2).to_dict("records")
     if knowledge_base:
         limits = list_limits(file_limit_path)
         positive_conditions = get_positive_rules(rules)

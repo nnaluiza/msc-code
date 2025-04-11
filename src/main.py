@@ -73,7 +73,8 @@ def train_network(seed, size, rep, reps, dataset_name):
 
     print("Starting training...\n")
 
-    knowledge_base = []
+    knowledge_base_file = export_knowledge_base_csv([], seed, rep, reps, append=False)
+
     for i, instance in enumerate(working_memory, 1):
         aux_folders(seed, rep, reps, i)
 
@@ -90,18 +91,19 @@ def train_network(seed, size, rep, reps, dataset_name):
 
         end = time.time()
 
+        global_error = gng.compute_global_error()
+
         if gng.number_of_clusters() > 1:
             print("\nFound %d clusters.\n" % gng.number_of_clusters())
-            knowledge_base.append(create_knowledge_base(gng.cluster_data(), instance, start, end, true_labels=true_labels))
+            knowledge_entry = create_knowledge_base(
+                gng.cluster_data(), instance, start, end, global_error, true_labels=true_labels
+            )
+            export_knowledge_base_csv(knowledge_entry, seed, rep, reps, append=True)
         else:
             print("\nFound %d cluster.\n" % gng.number_of_clusters())
             print("Only one cluster found. The training and the parameter set used will be disregarded.\n")
 
         print("-" * 100)
-
-    print("Generating knowledge base...")
-    knowledge_base_file = export_knowledge_base_csv(knowledge_base, seed, rep, reps)
-    print("Done.\n")
 
     print("\nTraining all done.\n")
 
@@ -113,7 +115,7 @@ def train_network(seed, size, rep, reps, dataset_name):
     print("Done.\n")
 
     print("Updating limits...\n")
-    limits_to_update = split_knowledge_base(rules, knowledge_base, files["limits_file"])
+    limits_to_update = split_knowledge_base(rules, knowledge_base_file, files["limits_file"])
     update_limits(limits_to_update, files["updated_limits_file"])
     print("Done.\n")
 

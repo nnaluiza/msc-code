@@ -21,6 +21,8 @@ def train_tree(rep, reps, seed, knowledge_base_file, tree_log_path):
         "davies_bouldin_index",
         "calinski_harabasz_index",
         "adjusted_rand_index",
+        "global_error",
+        "combined_score",
         "execution_time",
         "class",
     ]

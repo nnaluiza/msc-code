@@ -87,9 +87,8 @@ def export_working_memory_csv(data, seed, rep, reps):
             )
 
 
-def export_knowledge_base_csv(data, seed, rep, reps):
+def export_knowledge_base_csv(data, seed, rep, reps, append=False):
     """Exports the knowledge data to a CSV file"""
-
     if not os.path.exists("logs/knowledge_base"):
         os.makedirs("logs/knowledge_base")
 
@@ -99,46 +98,71 @@ def export_knowledge_base_csv(data, seed, rep, reps):
 
     file_name = f"{dir_path}/knowledge_base_rep{rep}.csv"
 
-    with open(f"{file_name}", "w", newline="") as csvfile:
+    mode = "a" if append else "w"
+    with open(file_name, mode, newline="") as csvfile:
         writer = csv.writer(csvfile, delimiter=",")
-        writer.writerow([f"# Knowledge Base - Execution: {rep} of {reps}"])
-        writer.writerow(["# Seed: {}".format(seed)])
-        writer.writerow(
-            [
-                "e_b",
-                "e_n",
-                "a_max",
-                "l",
-                "a",
-                "d",
-                "passes",
-                "silhouette_avg",
-                "davies_bouldin_index",
-                "calinski_harabasz_index",
-                "adjusted_rand_index",
-                "execution_time",
-                "combined_score",
-                "class",
-            ]
-        )
-
-        for instance in data:
+        if not append:
+            writer.writerow([f"# Knowledge Base - Execution: {rep} of {reps}"])
+            writer.writerow(["# Seed: {}".format(seed)])
             writer.writerow(
                 [
-                    instance["e_b"],
-                    instance["e_n"],
-                    instance["a_max"],
-                    instance["l"],
-                    instance["a"],
-                    instance["d"],
-                    instance["passes"],
-                    instance["silhouette_avg"],
-                    instance["davies_bouldin_index"],
-                    instance["calinski_harabasz_index"],
-                    instance["adjusted_rand_index"],
-                    instance["execution_time"],
-                    instance["combined_score"],
-                    instance["class"],
+                    "e_b",
+                    "e_n",
+                    "a_max",
+                    "l",
+                    "a",
+                    "d",
+                    "passes",
+                    "silhouette_avg",
+                    "davies_bouldin_index",
+                    "calinski_harabasz_index",
+                    "adjusted_rand_index",
+                    "global_error",
+                    "combined_score",
+                    "execution_time",
+                    "class",
+                ]
+            )
+
+        if isinstance(data, list):
+            for instance in data:
+                writer.writerow(
+                    [
+                        instance["e_b"],
+                        instance["e_n"],
+                        instance["a_max"],
+                        instance["l"],
+                        instance["a"],
+                        instance["d"],
+                        instance["passes"],
+                        instance["silhouette_avg"],
+                        instance["davies_bouldin_index"],
+                        instance["calinski_harabasz_index"],
+                        instance["adjusted_rand_index"],
+                        instance["global_error"],
+                        instance["combined_score"],
+                        instance["execution_time"],
+                        instance["class"],
+                    ]
+                )
+        else:
+            writer.writerow(
+                [
+                    data["e_b"],
+                    data["e_n"],
+                    data["a_max"],
+                    data["l"],
+                    data["a"],
+                    data["d"],
+                    data["passes"],
+                    data["silhouette_avg"],
+                    data["davies_bouldin_index"],
+                    data["calinski_harabasz_index"],
+                    data["adjusted_rand_index"],
+                    data["global_error"],
+                    data["combined_score"],
+                    data["execution_time"],
+                    data["class"],
                 ]
             )
 
@@ -188,8 +212,4 @@ def aux_folders_tree(seed, rep, reps):
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
-    dir_path_ = f"{dir_path}/rep{rep}"
-    if not os.path.exists(dir_path_):
-        os.makedirs(dir_path_)
-
-    return dir_path_
+    return dir_path
