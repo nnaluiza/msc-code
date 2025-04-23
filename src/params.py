@@ -22,13 +22,13 @@ def list_limits(file_limit_path):
                 limits = json.load(file)
         except FileNotFoundError:
             limits = [
-                (0.0, 0.5),
-                (0.0, 0.5),
-                (0, 10),
-                (1, 30),
-                (0.0, 1.0),
-                (0.0, 1.0),
-                (1, 10),
+                (0.1, 0.5),  # e_b
+                (0.1, 0.5),  # e_n
+                (1, 10),  # a_max
+                (1, 50),  # l
+                (0.1, 1.0),  # a
+                (0.1, 1.0),  # d
+                (1, 15),  # passes
             ]
             with open(file_limit_path, "w") as file:
                 json.dump(limits, file, indent=4)
@@ -44,13 +44,13 @@ def list_limits(file_limit_path):
                 json.dump(limits, target, indent=4)
         except FileNotFoundError:
             limits = [
-                (0.0, 0.5),
-                (0.0, 0.5),
-                (0, 10),
-                (1, 30),
-                (0.0, 1.0),
-                (0.0, 1.0),
-                (1, 10),
+                (0.1, 0.5),  # e_b
+                (0.1, 0.5),  # e_n
+                (1, 10),  # a_max
+                (1, 50),  # l
+                (0.1, 1.0),  # a
+                (0.1, 1.0),  # d
+                (1, 15),  # passes
             ]
             with open(file_limit_path, "w") as file:
                 json.dump(limits, file, indent=4)

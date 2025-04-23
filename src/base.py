@@ -16,7 +16,6 @@ from rules import adjust_parameters_based_on_rule, get_positive_rules
 def get_data_training(dataset_name):
     """Reads and processes dataset based on the provided dataset name.
     Returns standardized data as a numpy array and true labels if available."""
-
     true_labels = None
 
     if dataset_name.endswith(".arff"):
@@ -67,7 +66,6 @@ def random_value_generator(limit, is_discrete=False):
 def create_working_memory(seed, size, file_limit_path):
     """Generates size random parameter sets and stores them in the working_memory list.
     Each parameter set is a dictionary that maps parameter names to their values."""
-
     limits = list_limits(file_limit_path)
     params = list_params()
 
@@ -94,74 +92,8 @@ def create_working_memory(seed, size, file_limit_path):
     return working_memory
 
 
-def compute_clustering_score(silhouette_avg, davies_bouldin_index, calinski_harabasz_index, adjusted_rand_index, global_error):
-    """Computes a combined clustering score based on five metrics and classifies the parameter set as good (1) or bad (0)."""
-    # Normalize the metrics to [0, 1] where higher is better
-
-    # Silhouette Score: -1 to 1 -> 0 to 1
-    normalized_silhouette = (silhouette_avg + 1) / 2
-
-    # Davies-Bouldin Index: 0 to infinity (lower is better) -> 0 to 1 (higher is better)
-    normalized_davies_bouldin = np.exp(-davies_bouldin_index)
-
-    # Calinski-Harabasz Index: 0 to infinity (higher is better) -> 0 to 1
-    max_calinski = 300
-    log_calinski = np.log(calinski_harabasz_index + 1)
-    log_max = np.log(max_calinski + 1)
-    log_min = np.log(1 + 1)
-    normalized_calinski_harabasz = (log_calinski - log_min) / (log_max - log_min)
-    normalized_calinski_harabasz = np.clip(normalized_calinski_harabasz, 0, 1)
-
-    # Adjusted Rand Index: -1 to 1 -> 0 to 1 (or None)
-    normalized_adjusted_rand = None
-    if adjusted_rand_index is not None:
-        normalized_adjusted_rand = (adjusted_rand_index + 1) / 2
-
-    # Global Error: 0 to infinity (lower is better) -> 0 to 1 (higher is better)
-    max_global_error = 500
-    normalized_global_error = np.exp(-global_error / max_global_error)
-    normalized_global_error = np.clip(normalized_global_error, 0, 1)
-
-    weights = {
-        "silhouette": 0.20,
-        "davies_bouldin": 0.15,
-        "calinski_harabasz": 0.15,
-        "adjusted_rand": 0.25,
-        "global_error": 0.25,
-    }
-
-    if adjusted_rand_index is None:
-        total_weight = weights["silhouette"] + weights["davies_bouldin"] + weights["calinski_harabasz"] + weights["global_error"]
-        scale_factor = 1 / total_weight
-        weight_silhouette = weights["silhouette"] * scale_factor
-        weight_davies_bouldin = weights["davies_bouldin"] * scale_factor
-        weight_calinski_harabasz = weights["calinski_harabasz"] * scale_factor
-        weight_global_error = weights["global_error"] * scale_factor
-
-        combined_score = (
-            weight_silhouette * normalized_silhouette
-            + weight_davies_bouldin * normalized_davies_bouldin
-            + weight_calinski_harabasz * normalized_calinski_harabasz
-            + weight_global_error * normalized_global_error
-        )
-    else:
-        combined_score = (
-            weights["silhouette"] * normalized_silhouette
-            + weights["davies_bouldin"] * normalized_davies_bouldin
-            + weights["calinski_harabasz"] * normalized_calinski_harabasz
-            + weights["adjusted_rand"] * normalized_adjusted_rand
-            + weights["global_error"] * normalized_global_error
-        )
-
-    threshold = 0.65
-    class_label = 1 if combined_score >= threshold else 0
-
-    return combined_score, class_label
-
-
 def create_knowledge_base(clustered_data, instance, start, end, global_error, num_clusters, true_labels=None):
     """Creates a knowledge base entry with clustering evaluation metrics, global error, and number of clusters."""
-
     labels = []
     data = []
 
@@ -184,10 +116,6 @@ def create_knowledge_base(clustered_data, instance, start, end, global_error, nu
         else:
             print("Warning: True labels length does not match clustered data length. ARI will be None.")
 
-    combined_score, class_label = compute_clustering_score(
-        silhouette_avg, davies_bouldin, calinski_harabasz, adjusted_rand, global_error
-    )
-
     return {
         "e_b": instance["e_b"],
         "e_n": instance["e_n"],
@@ -202,10 +130,44 @@ def create_knowledge_base(clustered_data, instance, start, end, global_error, nu
         "calinski_harabasz_index": float(format(calinski_harabasz, ".4f")),
         "adjusted_rand_index": float(format(adjusted_rand, ".4f")) if adjusted_rand is not None else None,
         "global_error": float(format(global_error, ".4f")),
-        "combined_score": float(format(combined_score, ".4f")),
         "execution_time": float(format(end - start, ".4f")),
-        "class": class_label,
+        "class": None,  # Class will be assigned after sorting
     }
+
+
+def classify_knowledge_base(entries, error_threshold=None, normalize=True):
+    """Processes knowledge base entries by sorting them by global error, optionally normalizing the global error,
+    and assigning class labels based on a threshold"""
+
+    if not entries:
+        return None
+
+    sorted_entries = sorted(entries, key=lambda x: x["global_error"])
+    global_errors = [entry["global_error"] for entry in sorted_entries]
+
+    if normalize:
+        min_error = min(global_errors)
+        max_error = max(global_errors)
+        if max_error != min_error:
+            normalized_errors = [(error - min_error) / (max_error - min_error) for error in global_errors]
+        else:
+            normalized_errors = [0.0] * len(global_errors)
+        for entry, norm_error in zip(sorted_entries, normalized_errors):
+            entry["normalized_global_error"] = float(format(norm_error, ".4f"))
+        error_to_compare = [entry["normalized_global_error"] for entry in sorted_entries]
+    else:
+        error_to_compare = global_errors
+        for entry in sorted_entries:
+            entry["normalized_global_error"] = None
+
+    if error_threshold is None:
+        error_threshold = np.median(error_to_compare) if error_to_compare else 0.0
+
+    for entry in sorted_entries:
+        compare_value = entry["normalized_global_error"] if normalize else entry["global_error"]
+        entry["class"] = 1 if compare_value <= error_threshold else 0
+
+    return sorted_entries
 
 
 def split_knowledge_base(rules, knowledge_base_file, file_limit_path):

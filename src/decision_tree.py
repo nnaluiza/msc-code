@@ -16,19 +16,19 @@ def train_tree(rep, reps, seed, knowledge_base_file, tree_log_path):
 
     df = pd.read_csv(knowledge_base_file, delimiter=",", skiprows=2)
 
-    metrics_to_exclude = [
+    columns_to_exclude = [
         "clusters_number",
         "silhouette_avg",
         "davies_bouldin_index",
         "calinski_harabasz_index",
         "adjusted_rand_index",
         "global_error",
-        "combined_score",
+        "normalized_global_error",
         "execution_time",
         "class",
     ]
 
-    X = df.drop(metrics_to_exclude, axis=1)
+    X = df.drop(columns_to_exclude, axis=1)
     y = df["class"]
 
     clf.fit(X, y)

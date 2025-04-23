@@ -119,7 +119,7 @@ def export_knowledge_base_csv(data, seed, rep, reps, append=False):
                     "calinski_harabasz_index",
                     "adjusted_rand_index",
                     "global_error",
-                    "combined_score",
+                    "normalized_global_error",
                     "execution_time",
                     "class",
                 ]
@@ -142,7 +142,7 @@ def export_knowledge_base_csv(data, seed, rep, reps, append=False):
                         instance["calinski_harabasz_index"],
                         instance["adjusted_rand_index"],
                         instance["global_error"],
-                        instance["combined_score"],
+                        instance["normalized_global_error"],
                         instance["execution_time"],
                         instance["class"],
                     ]
@@ -163,7 +163,7 @@ def export_knowledge_base_csv(data, seed, rep, reps, append=False):
                     data["calinski_harabasz_index"],
                     data["adjusted_rand_index"],
                     data["global_error"],
-                    data["combined_score"],
+                    data["normalized_global_error"],
                     data["execution_time"],
                     data["class"],
                 ]
@@ -207,7 +207,7 @@ def aux_folders_rules(seed, rep, reps):
 
 
 def aux_folders_tree(seed, rep, reps):
-    """Creates the necessary folders for the tree images if they don't already exist"""
+    """Creates the necessaryFolders for the tree images if they don't already exist"""
     if not os.path.exists("logs/tree"):
         os.makedirs("logs/tree")
 
