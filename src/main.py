@@ -60,9 +60,12 @@ def train_network(seed, size, rep, reps, distance_metric, dataset_name):
     rep_seed = seed + rep
 
     print("Generating working memory...")
-    files = aux_folders_limits(seed, rep, reps)
+    files = aux_folders_limits(dataset_name, seed, rep, reps)
     working_memory = create_working_memory(rep_seed, size, files["limits_file"])
-    export_working_memory_csv(working_memory, seed, rep, reps)
+    if not working_memory:
+        raise ValueError(f"create_working_memory returned an empty or None working_memory for rep {rep}")
+    print(f"Working memory size: {len(working_memory)}")
+    export_working_memory_csv(dataset_name, working_memory, seed, rep, reps)
     print("Done.\n")
 
     print("Gathering data...")
@@ -71,11 +74,11 @@ def train_network(seed, size, rep, reps, distance_metric, dataset_name):
 
     print("Starting training...\n")
 
-    knowledge_base_file = export_knowledge_base_csv([], seed, rep, reps, append=False)
+    knowledge_base_file = export_knowledge_base_csv(dataset_name, [], seed, rep, reps, append=False)
     knowledge_base_entries = []
 
     for i, instance in enumerate(working_memory, 1):
-        aux_folders(seed, rep, reps, i)
+        base_dir = aux_folders(dataset_name, seed, rep, reps, i)
 
         print(f"Iteration {i} of {len(working_memory)}")
         values = list(instance.values())
@@ -84,9 +87,9 @@ def train_network(seed, size, rep, reps, distance_metric, dataset_name):
         print("Fitting neural network...\n")
         start = time.time()
 
-        gng = GrowingNeuralGas(data, seed, rep, reps, i, distance_metric=distance_metric)
+        gng = GrowingNeuralGas(base_dir, data, seed, rep, reps, i, distance_metric=distance_metric)
         gng.fit_network(e_b=values[0], e_n=values[1], a_max=values[2], l=values[3], a=values[4], d=values[5], passes=values[6])
-        export_clustered_data(gng.cluster_data(), seed, rep, reps, i)
+        export_clustered_data(dataset_name, gng.cluster_data(), seed, rep, reps, i)
 
         end = time.time()
 
@@ -106,14 +109,19 @@ def train_network(seed, size, rep, reps, distance_metric, dataset_name):
         print("-" * 100)
 
     if knowledge_base_entries:
-        sorted_entries = classify_knowledge_base(knowledge_base_entries, error_threshold=0.65, normalize=False)
-        export_knowledge_base_csv(sorted_entries, seed, rep, reps, append=False)
+        sorted_entries = classify_knowledge_base(knowledge_base_entries, rep, reps)
+        if sorted_entries:
+            export_knowledge_base_csv(dataset_name, sorted_entries, seed, rep, reps, append=False)
+        else:
+            print("Warning: No sorted entries from classify_knowledge_base, skipping export")
+    else:
+        print("Warning: No knowledge base entries generated, skipping classification and export")
 
     print("\nTraining all done.\n")
 
     print("Starting tree training...\n")
-    tree_path = aux_folders_tree(seed, rep, reps)
-    rules = train_tree(rep, reps, seed, knowledge_base_file, tree_path)
+    tree_path = aux_folders_tree(dataset_name, seed, rep, reps)
+    rules = train_tree(dataset_name, rep, reps, seed, knowledge_base_file, tree_path)
     for r in rules:
         print(r)
     print("Done.\n")
@@ -126,6 +134,7 @@ def train_network(seed, size, rep, reps, distance_metric, dataset_name):
 
 def main(params):
     """Parses command-line parameters and initiates the model training process."""
+    print(f"Received parameters: {params}")
     if len(params) != 5:
         print("Error: Expected 5 parameters (seed, size, reps, distance_metric, dataset_name)")
         print("Usage: python run.py <seed> <size> <reps> <distance_metric> <dataset_name>")

@@ -21,7 +21,7 @@ These configurations provide the foundation for the development and execution of
 
 | Task                      | Windows (PowerShell)                     | Ubuntu                          |
 |---------------------------|------------------------------------------|---------------------------------|
-| Create virtual environment | `python -m venv env-windows`            | `python3 -m venv env-ubuntu`   |
+| Create virtual environment | `python -m venv env-windows`            | `python3.13 -m venv env-ubuntu`   |
 | Activate environment      | `.\env-windows\Scripts\Activate.ps1`     | `source env-ubuntu/bin/activate` |
 | Install dependencies      | `pip install -r requirements.txt`        | `pip install -r requirements.txt` |
 | Deactivate environment    | `deactivate`                             | `deactivate`                    |

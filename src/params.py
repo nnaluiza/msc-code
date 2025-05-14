@@ -22,8 +22,8 @@ def list_limits(file_limit_path):
                 limits = json.load(file)
         except FileNotFoundError:
             limits = [
-                (0.1, 0.5),  # e_b
-                (0.1, 0.5),  # e_n
+                (0.1, 1),  # e_b
+                (0.1, 1),  # e_n
                 (1, 10),  # a_max
                 (1, 50),  # l
                 (0.1, 1.0),  # a
@@ -75,44 +75,44 @@ def show_descriptions():
         {
             "param": "e_b",
             "description": "Controls the movement of the winning neuron at each iteration",
-            "min_value": 0.0,
+            "min_value": 0.1,
             "max_value": 1.0,
         },
         {
             "param": "e_n",
             "description": "Controls the movement of the topological neighbors of the winning neuron at each iteration",
-            "min_value": 0.0,
+            "min_value": 0.1,
             "max_value": 1.0,
         },
         {
             "param": "a_max",
             "description": "Sets the maximum age that an edge can have within the network",
-            "min_value": 0.0,
+            "min_value": 1,
             "max_value": 10,
         },
         {
             "param": "l",
             "description": "Parameter for inserting neurons into the network",
             "min_value": 1,
-            "max_value": 30,
+            "max_value": 50,
         },
         {
             "param": "a",
             "description": "Controls the learning rate during network training",
-            "min_value": 0.0,
+            "min_value": 0.1,
             "max_value": 1.0,
         },
         {
             "param": "d",
             "description": "Controls the reduction of the influence of the oldest neurons in the network",
-            "min_value": 0.0,
+            "min_value": 0.1,
             "max_value": 1.0,
         },
         {
             "param": "passes",
             "description": "Number of iterations within the algorithm",
             "min_value": 1,
-            "max_value": 10,
+            "max_value": 15,
         },
     ]
     return descriptions

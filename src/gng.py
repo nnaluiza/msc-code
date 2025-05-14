@@ -20,7 +20,7 @@ Information Processing Systems 7, 1995.
 class GrowingNeuralGas:
     """GrowingNeuralGas class"""
 
-    def __init__(self, input_data, seed, rep, reps, i, distance_metric="euclidean"):
+    def __init__(self, base_path, input_data, seed, rep, reps, i, distance_metric="euclidean"):
         """Initializes the GrowingNeuralGas class"""
         # Ensure input_data is a NumPy array
         if not isinstance(input_data, np.ndarray):
@@ -33,6 +33,7 @@ class GrowingNeuralGas:
         self.rep = rep
         self.reps = reps
         self.i = i
+        self.base_path = base_path
         # Validate and set distance metric
         valid_metrics = ["euclidean", "cityblock", "cosine", "pearson"]
         if distance_metric not in valid_metrics:
@@ -84,7 +85,7 @@ class GrowingNeuralGas:
             self.network.remove_node(u)
 
     def fit_network(self, e_b, e_n, a_max, l, a, d, passes, plot_evolution=False):
-        base_dir = f"logs/visualization/seed-{self.seed}_reps-{self.reps}/rep{self.rep}/i{self.i}"
+        base_dir = self.base_path
 
         """Trains the GNG algorithm on a given dataset"""
         """Logging variables"""
@@ -346,7 +347,7 @@ class GrowingNeuralGas:
         plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize="small")
         plt.tight_layout()
 
-        base_dir = f"logs/visualization/seed-{self.seed}_reps-{self.reps}/rep{self.rep}/i{self.i}"
+        base_dir = self.base_dir
         plt.savefig(f"{base_dir}/clusters.png")
         plt.close()
 

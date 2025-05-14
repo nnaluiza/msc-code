@@ -10,9 +10,17 @@ from rules import extract_rules
 from utils import aux_folders_rules
 
 
-def train_tree(rep, reps, seed, knowledge_base_file, tree_log_path):
+def train_tree(dataset_name, rep, reps, seed, knowledge_base_file, tree_log_path):
     """Trains a decision tree classifier using only the GNG parameters and class."""
-    clf = DecisionTreeClassifier(random_state=seed, min_samples_leaf=3, criterion="gini")
+
+    clf = DecisionTreeClassifier(
+        random_state=seed,
+        min_samples_leaf=3,
+        criterion="gini",
+        max_depth=10,  # Limit depth to prevent overfitting
+        min_samples_split=5,  # Require at least 5 samples to split
+        max_leaf_nodes=50,  # Limit number of leaf nodes
+    )
 
     df = pd.read_csv(knowledge_base_file, delimiter=",", skiprows=2)
 
@@ -42,10 +50,10 @@ def train_tree(rep, reps, seed, knowledge_base_file, tree_log_path):
     print(text_representation)
     print("-" * 50)
 
-    return get_rules(clf, names, classes, rep, reps, seed)
+    return get_rules(dataset_name, clf, names, classes, rep, reps, seed)
 
 
-def get_rules(tree, feature_names, class_names, rep, reps, seed):
+def get_rules(dataset_name, tree, feature_names, class_names, rep, reps, seed):
     """Extract rules from the tree"""
     tree_ = tree.tree_
     feature_name = [feature_names[i] if i != TREE_UNDEFINED else "undefined!" for i in tree_.feature]
@@ -75,7 +83,7 @@ def get_rules(tree, feature_names, class_names, rep, reps, seed):
 
     rules = []
 
-    file_name = aux_folders_rules(seed, rep, reps)
+    file_name = aux_folders_rules(dataset_name, seed, rep, reps)
     with open(file_name, "w") as f:
         for path in paths:
             rule = "if "

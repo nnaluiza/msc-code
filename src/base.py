@@ -135,9 +135,9 @@ def create_knowledge_base(clustered_data, instance, start, end, global_error, nu
     }
 
 
-def classify_knowledge_base(entries, error_threshold=None, normalize=True):
-    """Processes knowledge base entries by sorting them by global error, optionally normalizing the global error,
-    and assigning class labels based on a threshold"""
+def classify_knowledge_base(entries, rep, reps, normalize=True):
+    """Processes knowledge base entries by sorting them by global error, and classifies entries with threshold based on percentile.
+    For rep=1, 80% of solutions are classified as good (class=1). Threshold decreases by 5% per rep until reaching 10%."""
 
     if not entries:
         return None
@@ -156,16 +156,19 @@ def classify_knowledge_base(entries, error_threshold=None, normalize=True):
             entry["normalized_global_error"] = float(format(norm_error, ".4f"))
         error_to_compare = [entry["normalized_global_error"] for entry in sorted_entries]
     else:
-        error_to_compare = global_errors
         for entry in sorted_entries:
             entry["normalized_global_error"] = None
+        error_to_compare = global_errors
 
-    if error_threshold is None:
-        error_threshold = np.median(error_to_compare) if error_to_compare else 0.0
+    initial_percentile = 80
+    min_percentile = 10
+    decrement = 5
+    current_percentile = max(min_percentile, initial_percentile - (rep - 1) * decrement)
+    threshold = np.percentile(error_to_compare, current_percentile)
 
     for entry in sorted_entries:
         compare_value = entry["normalized_global_error"] if normalize else entry["global_error"]
-        entry["class"] = 1 if compare_value <= error_threshold else 0
+        entry["class"] = 1 if compare_value <= threshold else 0
 
     return sorted_entries
 
