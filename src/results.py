@@ -99,7 +99,7 @@ def read_limits_file(file_path: str) -> Dict[str, List[float]]:
     return limits
 
 def calculate_statistics(data: List[Dict[str, Any]]) -> Dict[str, Dict[str, float]]:
-    """Calculates min, max, mean, std, and 95% CI for numerical columns (excluding normalized_global_error, class)."""
+    """Calculates global min, max, mean, std, and 95% CI across all knowledge base entries."""
     numerical_cols = ['e_b', 'e_n', 'a_max', 'l', 'a', 'd', 'passes', 'clusters_number',
                       'silhouette_avg', 'davies_bouldin_index', 'calinski_harabasz_index',
                       'adjusted_rand_index', 'global_error', 'execution_time']
@@ -114,8 +114,7 @@ def calculate_statistics(data: List[Dict[str, Any]]) -> Dict[str, Dict[str, floa
             statistics[col]['mean'] = float(np.mean(values))
             statistics[col]['std'] = float(np.std(values, ddof=1))
             if len(values) > 1:
-                # Manual confidence interval using t-distribution
-                t_critical = stats.t.ppf(0.975, df=len(values)-1)  # 0.975 for 95% CI (two-tailed)
+                t_critical = stats.t.ppf(0.975, df=len(values)-1)
                 margin_of_error = t_critical * (statistics[col]['std'] / np.sqrt(len(values)))
                 statistics[col]['ci_lower'] = float(statistics[col]['mean'] - margin_of_error)
                 statistics[col]['ci_upper'] = float(statistics[col]['mean'] + margin_of_error)
@@ -124,90 +123,103 @@ def calculate_statistics(data: List[Dict[str, Any]]) -> Dict[str, Dict[str, floa
 
 def export_statistics_csv(dataset_name: str, seed: int, reps: int, data: List[Dict[str, Any]],
                          total_reps: int, total_discarded: int, stats: Dict[str, Dict[str, float]]):
-    """Exports statistics to a CSV file with the same header as knowledge base."""
+    """Exports statistics to a CSV file with the updated header, formatted to 4 decimals."""
     dir_path = f"logs/results/{dataset_name}/seed-{seed}_reps-{reps}"
     os.makedirs(dir_path, exist_ok=True)
     file_path = f"{dir_path}/statistics.csv"
 
     headers = ['e_b', 'e_n', 'a_max', 'l', 'a', 'd', 'passes', 'clusters_number',
                'silhouette_avg', 'davies_bouldin_index', 'calinski_harabasz_index',
-               'adjusted_rand_index', 'global_error', 'normalized_global_error', 'execution_time', 'class']
+               'adjusted_rand_index', 'global_error', 'execution_time']
 
     with open(file_path, mode='w', newline='') as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow([f"# Total Repetitions: {total_reps}"])
-        writer.writerow([f"# Total Parameters Generated: {len(data)}"])
-        writer.writerow([f"# Total Sets Discarded: {total_discarded}"])
         writer.writerow(headers)
 
-        min_row = [stats.get(col, {}).get('min', '') for col in headers[:-2]] + ['', '']
+        min_row = [f"{float(stats.get(col, {}).get('min', 0)):.4f}" if stats.get(col, {}).get('min') is not None else '' for col in headers] + ['']
         writer.writerow(['min'] + min_row[1:])
 
-        max_row = [stats.get(col, {}).get('max', '') for col in headers[:-2]] + ['', '']
+        max_row = [f"{float(stats.get(col, {}).get('max', 0)):.4f}" if stats.get(col, {}).get('max') is not None else '' for col in headers] + ['']
         writer.writerow(['max'] + max_row[1:])
 
-        mean_row = [stats.get(col, {}).get('mean', '') for col in headers[:-2]] + ['', '']
+        mean_row = [f"{float(stats.get(col, {}).get('mean', 0)):.4f}" if stats.get(col, {}).get('mean') is not None else '' for col in headers] + ['']
         writer.writerow(['mean'] + mean_row[1:])
 
-        std_row = [stats.get(col, {}).get('std', '') for col in headers[:-2]] + ['', '']
+        std_row = [f"{float(stats.get(col, {}).get('std', 0)):.4f}" if stats.get(col, {}).get('std') is not None else '' for col in headers] + ['']
         writer.writerow(['std'] + std_row[1:])
 
-        ci_lower_row = [stats.get(col, {}).get('ci_lower', '') for col in headers[:-2]] + ['', '']
+        ci_lower_row = [f"{float(stats.get(col, {}).get('ci_lower', 0)):.4f}" if stats.get(col, {}).get('ci_lower') is not None else '' for col in headers] + ['']
         writer.writerow(['ci_lower'] + ci_lower_row[1:])
 
-        ci_upper_row = [stats.get(col, {}).get('ci_upper', '') for col in headers[:-2]] + ['', '']
+        ci_upper_row = [f"{float(stats.get(col, {}).get('ci_upper', 0)):.4f}" if stats.get(col, {}).get('ci_upper') is not None else '' for col in headers] + ['']
         writer.writerow(['ci_upper'] + ci_upper_row[1:])
 
     print(f"Statistics exported to: {file_path}")
 
-def create_boxplot(dataset_name: str, seed: int, reps: int, limits_data: Dict[int, Dict[str, Any]]):
-    """Creates a boxplot showing parameter limit variations for first and last repetitions."""
+def create_boxplots(dataset_name: str, seed: int, reps: int, limits_data: Dict[int, Dict[str, Any]]):
+    """Creates separate normalized and raw boxplots for each parameter across all repetitions with data points."""
     rep_numbers = sorted(limits_data.keys())
     if not rep_numbers:
-        print("No limits data available for boxplot")
+        print("No limits data available for boxplots")
         return
 
-    first_rep = rep_numbers[0]
-    last_rep = rep_numbers[-1]
-
     params = ['e_b', 'e_n', 'a_max', 'l', 'a', 'd', 'passes']
-    data = []
-    labels = []
+    data = {param: [] for param in params}
 
-    for param in params:
-        first_limits = limits_data[first_rep].get('limits', {}).get(param, [0, 0])
-        last_limits = limits_data[last_rep].get('limits', {}).get(param, [0, 0])
+    for rep in rep_numbers:
+        limits = limits_data[rep].get('limits', {})
+        for param in params:
+            min_val, max_val = limits.get(param, [0, 0])
+            data[param].append(min_val)
+            data[param].append(max_val)
 
-        box_data = [
-            first_limits[0],
-            first_limits[1],
-            last_limits[0],
-            last_limits[1]
-        ]
-        data.append(box_data)
-        labels.append(param)
-
-    normalized_data = []
-    for box in data:
-        if max(box) - min(box) > 0:
-            normalized = [(x - min(box)) / (max(box) - min(box)) for x in box]
+    # Normalized boxplots with data points
+    fig_norm, axes_norm = plt.subplots(2, 4, figsize=(16, 8), constrained_layout=True)
+    axes_norm = axes_norm.flatten()
+    for idx, param in enumerate(params):
+        if max(data[param]) - min(data[param]) > 0:
+            normalized = [(x - min(data[param])) / (max(data[param]) - min(data[param])) for x in data[param]]
         else:
-            normalized = box
-        normalized_data.append(normalized)
-
-    plt.figure(figsize=(10, 6))
-    plt.boxplot(normalized_data, labels=labels, vert=True, patch_artist=True)
-    plt.title(f'Parameter Limits Variation (First Rep: {first_rep}, Last Rep: {last_rep})')
-    plt.xlabel('Parameters')
-    plt.ylabel('Normalized Values (0 to 1)')
-    plt.grid(True, axis='y', linestyle='--', alpha=0.7)
+            normalized = data[param]
+        axes_norm[idx].boxplot(normalized)
+        # Add scatter plot for data points
+        x_positions = np.random.normal(1, 0.04, len(normalized))  # Jitter for visibility
+        axes_norm[idx].scatter(x_positions, normalized, alpha=0.5, color='red', s=20)
+        axes_norm[idx].set_title(f'{param} (Normalized)')
+        axes_norm[idx].set_ylabel('Normalized Values (0 to 1)')
+        axes_norm[idx].grid(True, linestyle='--', alpha=0.7)
+    for ax in axes_norm[len(params):]:
+        ax.remove()
+    plt.suptitle(f'Parameter Limits Variation (Normalized) Across All Reps (Seed: {seed}, Reps: {reps})')
 
     output_dir = f"logs/results/{dataset_name}/seed-{seed}_reps-{reps}"
     os.makedirs(output_dir, exist_ok=True)
-    output_path = f"{output_dir}/parameter_limits_boxplot.png"
-    plt.savefig(output_path)
+    output_path_norm = f"{output_dir}/parameter_limits_normalized_boxplots.png"
+    plt.savefig(output_path_norm)
     plt.close()
-    print(f"Boxplot saved to: {output_path}")
+    print(f"Normalized boxplots saved to: {output_path_norm}")
+
+    # Raw boxplots with data points
+    fig_raw, axes_raw = plt.subplots(2, 4, figsize=(16, 8), constrained_layout=True)
+    axes_raw = axes_raw.flatten()
+    for idx, param in enumerate(params):
+        values = data[param]
+        axes_raw[idx].boxplot(values)
+        # Add scatter plot for data points
+        x_positions = np.random.normal(1, 0.04, len(values))  # Jitter for visibility
+        axes_raw[idx].scatter(x_positions, values, alpha=0.5, color='red', s=20)
+        axes_raw[idx].set_title(f'{param} (Raw)')
+        axes_raw[idx].set_ylabel('Raw Values')
+        axes_raw[idx].grid(True, linestyle='--', alpha=0.7)
+        axes_raw[idx].set_ylim(min(values) * 0.9, max(values) * 1.1)  # Dynamic y-limits
+    for ax in axes_raw[len(params):]:
+        ax.remove()
+    plt.suptitle(f'Parameter Limits Variation (Raw) Across All Reps (Seed: {seed}, Reps: {reps})')
+
+    output_path_raw = f"{output_dir}/parameter_limits_raw_boxplots.png"
+    plt.savefig(output_path_raw)
+    plt.close()
+    print(f"Raw boxplots saved to: {output_path_raw}")
 
 def read_all_data(dataset_name: str, seed: int, reps: int) -> Dict[str, Any]:
     """Reads all knowledge base CSV and limits JSON files, returning combined data."""
@@ -258,7 +270,7 @@ def read_all_data(dataset_name: str, seed: int, reps: int) -> Dict[str, Any]:
     }
 
 def main(dataset_name: str, seed: int, reps: int):
-    """Main function to read, process, and export statistics and boxplot."""
+    """Main function to read, process, and export statistics and boxplots."""
     print(f"Processing data for dataset: {dataset_name}, seed: {seed}, reps: {reps}")
     all_data = read_all_data(dataset_name, seed, reps)
 
@@ -278,9 +290,9 @@ def main(dataset_name: str, seed: int, reps: int):
 
     limits_data = all_data['limits']
     if limits_data:
-        create_boxplot(dataset_name, seed, reps, limits_data)
+        create_boxplots(dataset_name, seed, reps, limits_data)
     else:
-        print("No limits data found for boxplot.")
+        print("No limits data found for boxplots.")
 
 if __name__ == "__main__":
     import sys

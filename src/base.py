@@ -109,12 +109,21 @@ def create_knowledge_base(clustered_data, instance, start, end, global_error, nu
     davies_bouldin = metrics.davies_bouldin_score(data, labels)
     calinski_harabasz = metrics.calinski_harabasz_score(data, labels)
 
+    # adjusted_rand = None
+    # if true_labels is not None:
+    #     if len(true_labels) == len(labels):
+    #         adjusted_rand = metrics.adjusted_rand_score(true_labels, labels)
+    #     else:
+    #         print("Warning: True labels length does not match clustered data length. ARI will be None.")
+
     adjusted_rand = None
+    rand_index = None
     if true_labels is not None:
         if len(true_labels) == len(labels):
             adjusted_rand = metrics.adjusted_rand_score(true_labels, labels)
+            rand_index = metrics.rand_score(true_labels, labels)
         else:
-            print("Warning: True labels length does not match clustered data length. ARI will be None.")
+            print("Warning: True labels length does not match clustered data length. ARI and RI will be None.")
 
     total_time = end - start
     if isinstance(total_time, float):
@@ -140,6 +149,7 @@ def create_knowledge_base(clustered_data, instance, start, end, global_error, nu
         "davies_bouldin_index": float(format(davies_bouldin, ".4f")),
         "calinski_harabasz_index": float(format(calinski_harabasz, ".4f")),
         "adjusted_rand_index": float(format(adjusted_rand, ".4f")) if adjusted_rand is not None else None,
+        "rand_index": float(format(rand_index, ".4f")) if rand_index is not None else None,
         "global_error": float(format(global_error, ".4f")),
         "execution_time": float(format(execution_time, ".4f")),
         "class": None,  # Class will be assigned after sorting
