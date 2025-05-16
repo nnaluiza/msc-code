@@ -90,8 +90,8 @@ def export_working_memory_csv(dataset_name, data, seed, rep, reps):
             )
 
 
-def export_knowledge_base_csv(dataset_name, data, seed, rep, reps, append=False):
-    """Exports the knowledge data to a CSV file"""
+def get_knowledge_base_file(dataset_name, seed, rep, reps):
+    """Creates the necessary folders for the knowledge bases if they don't already exist"""
     if not os.path.exists("logs/knowledge_base"):
         os.makedirs("logs/knowledge_base")
 
@@ -101,12 +101,19 @@ def export_knowledge_base_csv(dataset_name, data, seed, rep, reps, append=False)
 
     file_name = f"{dir_path}/knowledge_base_rep{rep}.csv"
 
+    return file_name
+
+
+def export_knowledge_base_csv(file_name, dataset_name, data, seed, rep, reps, discarded_sets, working_memory_size, append=False):
+    """Exports the knowledge data to a CSV file"""
+
     mode = "a" if append else "w"
     with open(file_name, mode, newline="") as csvfile:
         writer = csv.writer(csvfile, delimiter=",")
         if not append:
             writer.writerow([f"# Knowledge Base - Execution: {rep} of {reps}"])
-            writer.writerow(["# Seed: {}".format(seed)])
+            writer.writerow([f"# Working Memory generated sets: {working_memory_size} - Discarded sets: {discarded_sets}"])
+            writer.writerow([f"# Seed: {seed}"])
             writer.writerow(["# Dataset: {}".format(dataset_name)])
             writer.writerow(
                 [
@@ -173,8 +180,6 @@ def export_knowledge_base_csv(dataset_name, data, seed, rep, reps, append=False)
                 ]
             )
 
-    return file_name
-
 
 def export_clustered_data(dataset_name, data, seed, rep, reps, i):
     """Exports the clustered data to a text file, which is solely used for comparison of the results."""
@@ -211,7 +216,7 @@ def aux_folders_rules(dataset_name, seed, rep, reps):
 
 
 def aux_folders_tree(dataset_name, seed, rep, reps):
-    """Creates the necessaryFolders for the tree images if they don't already exist"""
+    """Creates the necessary folders for the tree images if they don't already exist"""
     if not os.path.exists("logs/tree"):
         os.makedirs("logs/tree")
 
@@ -220,3 +225,13 @@ def aux_folders_tree(dataset_name, seed, rep, reps):
         os.makedirs(dir_path)
 
     return dir_path
+
+
+def get_formatted_time(start_time, end_time):
+    total_time = end_time - start_time
+    total_seconds = int(total_time)
+    milliseconds = int((total_time % 1) * 1000)
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    return f"{hours}h:{minutes:02d}m:{seconds:02d}s.{milliseconds:03d}ms."

@@ -22,7 +22,7 @@ def train_tree(dataset_name, rep, reps, seed, knowledge_base_file, tree_log_path
         max_leaf_nodes=50,  # Limit number of leaf nodes
     )
 
-    df = pd.read_csv(knowledge_base_file, delimiter=",", skiprows=2)
+    df = pd.read_csv(knowledge_base_file, delimiter=",", skiprows=4)
 
     columns_to_exclude = [
         "clusters_number",

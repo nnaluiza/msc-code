@@ -217,32 +217,19 @@ class GrowingNeuralGas:
 
             end = time.time()
             execution = end - start
-            time_pass = str(timedelta(seconds=round(execution)))
-            execution_time = time_pass.split(":")
-            print(
-                "   Pass #%d" % (p + 1)
-                + " - DONE in ~"
-                + execution_time[0]
-                + "h:"
-                + execution_time[1]
-                + "m:"
-                + execution_time[2]
-                + "s.\n"
-            )
+            total_seconds = int(execution)
+            milliseconds = int((execution % 1) * 1000)
+            hours, remainder = divmod(total_seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            print(f"   Pass #{p + 1} - DONE in ~{hours}h:{minutes:02d}m:{seconds:02d}s.{milliseconds:03d}ms.\n")
 
         end_time = time.time()
         total_time = end_time - start_time
-        total = str(timedelta(seconds=round(total_time)))
-        total_execution_time = total.split(":")
-        print(
-            "Total execution time in ~"
-            + total_execution_time[0]
-            + "h:"
-            + total_execution_time[1]
-            + "m:"
-            + total_execution_time[2]
-            + "s.\n"
-        )
+        total_seconds = int(total_time)
+        milliseconds = int((total_time % 1) * 1000)
+        hours, remainder = divmod(total_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        print(f"Total execution time in ~{hours}h:{minutes:02d}m:{seconds:02d}s.{milliseconds:03d}ms.\n")
 
         accumulated_local_error = np.clip(accumulated_local_error, 0, max_error_value)
         global_error = np.clip(global_error, 0, max_error_value)
@@ -268,6 +255,8 @@ class GrowingNeuralGas:
         plt.legend()
         plt.savefig(f"{base_dir}/network_properties.png")
         plt.close()
+
+        return start_time, end_time
 
     def plot_network(self, file_path):
         """Plots the GNG network to a file"""

@@ -116,6 +116,17 @@ def create_knowledge_base(clustered_data, instance, start, end, global_error, nu
         else:
             print("Warning: True labels length does not match clustered data length. ARI will be None.")
 
+    total_time = end - start
+    if isinstance(total_time, float):
+        total_seconds = total_time
+    else:
+        total_seconds = total_time.total_seconds()
+
+    execution_time = total_seconds
+    execution_time_str = f"{execution_time:.4f}"
+    execution_time_str = str(execution_time)[: str(execution_time).find(".") + 5]
+    execution_time = float(execution_time_str)
+
     return {
         "e_b": instance["e_b"],
         "e_n": instance["e_n"],
@@ -130,7 +141,7 @@ def create_knowledge_base(clustered_data, instance, start, end, global_error, nu
         "calinski_harabasz_index": float(format(calinski_harabasz, ".4f")),
         "adjusted_rand_index": float(format(adjusted_rand, ".4f")) if adjusted_rand is not None else None,
         "global_error": float(format(global_error, ".4f")),
-        "execution_time": float(format(end - start, ".4f")),
+        "execution_time": float(format(execution_time, ".4f")),
         "class": None,  # Class will be assigned after sorting
     }
 
