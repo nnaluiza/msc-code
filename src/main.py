@@ -103,7 +103,6 @@ def train_network(seed, size, rep, reps, distance_metric, dataset_name, m):
             discarded_sets += 1
 
         print("-" * 100)
-        print(discarded_sets)
 
     if knowledge_base_entries:
         sorted_entries = classify_knowledge_base(knowledge_base_entries, rep, reps)

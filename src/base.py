@@ -186,7 +186,7 @@ def classify_knowledge_base(entries, rep, reps, normalize=True):
 
 def split_knowledge_base(rules, knowledge_base_file, file_limit_path):
     """Processes knowledge base and rules to update parameter limits."""
-    knowledge_base = pd.read_csv(knowledge_base_file, delimiter=",", skiprows=2).to_dict("records")
+    knowledge_base = pd.read_csv(knowledge_base_file, delimiter=",", skiprows=4).to_dict("records")
     if knowledge_base:
         limits = list_limits(file_limit_path)
         positive_conditions = get_positive_rules(rules)
