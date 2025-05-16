@@ -108,7 +108,7 @@ def export_knowledge_base_csv(file_name, dataset_name, data, seed, rep, reps, di
     """Exports the knowledge data to a CSV file"""
 
     mode = "a" if append else "w"
-    with open(file_name, mode, newline="", encoding='utf-8') as csvfile:
+    with open(file_name, mode, newline="", encoding="utf-8") as csvfile:
         writer = csv.writer(csvfile, delimiter=",")
         if not append:
             writer.writerow([f"# Knowledge Base - Execution: {rep} of {reps}"])
