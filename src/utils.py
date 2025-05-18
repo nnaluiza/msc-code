@@ -207,6 +207,7 @@ def export_clustered_data(dataset_name, data, seed, rep, reps, i):
     file.write(str(data))
     file.close()
 
+
 def aux_folders_rules(dataset_name, seed, rep, reps):
     """Creates the necessary folders for the rules if they don't already exist"""
     if not os.path.exists("logs/rules"):

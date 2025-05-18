@@ -35,7 +35,7 @@ def train_tree(dataset_name, rep, reps, seed, knowledge_base_file, tree_log_path
         "normalized_global_error",
         "execution_time",
         "class",
-        "rep_number"
+        "rep_number",
     ]
 
     X = df.drop(columns_to_exclude, axis=1)

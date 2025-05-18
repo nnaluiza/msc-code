@@ -55,7 +55,7 @@ class GrowingNeuralGas:
                 return spatial.distance.cdist(vector1.reshape(1, -1), vector2.reshape(1, -1), metric=self.distance_metric)[0][0]
         except ValueError:
             # Handle cases like constant vectors for pearson or invalid inputs
-            return 1.0  # Default distance for edge cases
+            return 1.0
 
     def find_nearest_units(self, observation):
         """Finds the nearest unit to a given observation"""
