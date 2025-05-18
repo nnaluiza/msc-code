@@ -336,7 +336,7 @@ class GrowingNeuralGas:
         plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize="small")
         plt.tight_layout()
 
-        base_dir = self.base_dir
+        base_dir = self.base_path
         plt.savefig(f"{base_dir}/clusters.png")
         plt.close()
 

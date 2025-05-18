@@ -86,7 +86,9 @@ def train_network(seed, size, rep, reps, distance_metric, dataset_name, m):
         start, end = gng.fit_network(
             e_b=values[0], e_n=values[1], a_max=values[2], l=values[3], a=values[4], d=values[5], passes=values[6]
         )
+
         export_clustered_data(dataset_name, gng.cluster_data(), seed, rep, reps, i)
+        gng.plot_cluster(gng.cluster_data())
 
         global_error = gng.compute_global_error()
         num_clusters = gng.number_of_clusters()
@@ -94,7 +96,7 @@ def train_network(seed, size, rep, reps, distance_metric, dataset_name, m):
         if num_clusters > 1:
             print("\nFound %d clusters.\n" % num_clusters)
             knowledge_entry = create_knowledge_base(
-                gng.cluster_data(), instance, start, end, global_error, num_clusters, true_labels
+                gng.cluster_data(), instance, start, end, global_error, num_clusters, i, true_labels
             )
             knowledge_base_entries.append(knowledge_entry)
         else:

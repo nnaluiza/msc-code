@@ -117,6 +117,7 @@ def export_knowledge_base_csv(file_name, dataset_name, data, seed, rep, reps, di
             writer.writerow(["# Dataset: {}".format(dataset_name)])
             writer.writerow(
                 [
+                    "rep_number",
                     "e_b",
                     "e_n",
                     "a_max",
@@ -141,6 +142,7 @@ def export_knowledge_base_csv(file_name, dataset_name, data, seed, rep, reps, di
             for instance in data:
                 writer.writerow(
                     [
+                        instance["rep_number"],
                         instance["e_b"],
                         instance["e_n"],
                         instance["a_max"],
@@ -163,6 +165,7 @@ def export_knowledge_base_csv(file_name, dataset_name, data, seed, rep, reps, di
         else:
             writer.writerow(
                 [
+                    data["rep_number"],
                     data["e_b"],
                     data["e_n"],
                     data["a_max"],
@@ -203,7 +206,6 @@ def export_clustered_data(dataset_name, data, seed, rep, reps, i):
     file = io.open(f"{file_name}", "w")
     file.write(str(data))
     file.close()
-
 
 def aux_folders_rules(dataset_name, seed, rep, reps):
     """Creates the necessary folders for the rules if they don't already exist"""

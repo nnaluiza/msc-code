@@ -92,7 +92,7 @@ def create_working_memory(seed, size, file_limit_path):
     return working_memory
 
 
-def create_knowledge_base(clustered_data, instance, start, end, global_error, num_clusters, true_labels=None):
+def create_knowledge_base(clustered_data, instance, start, end, global_error, num_clusters, rep_number, true_labels=None):
     """Creates a knowledge base entry with clustering evaluation metrics, global error, and number of clusters."""
     labels = []
     data = []
@@ -108,13 +108,6 @@ def create_knowledge_base(clustered_data, instance, start, end, global_error, nu
     silhouette_avg = metrics.silhouette_score(data, labels, metric="euclidean")
     davies_bouldin = metrics.davies_bouldin_score(data, labels)
     calinski_harabasz = metrics.calinski_harabasz_score(data, labels)
-
-    # adjusted_rand = None
-    # if true_labels is not None:
-    #     if len(true_labels) == len(labels):
-    #         adjusted_rand = metrics.adjusted_rand_score(true_labels, labels)
-    #     else:
-    #         print("Warning: True labels length does not match clustered data length. ARI will be None.")
 
     adjusted_rand = None
     rand_index = None
@@ -137,6 +130,7 @@ def create_knowledge_base(clustered_data, instance, start, end, global_error, nu
     execution_time = float(execution_time_str)
 
     return {
+        "rep_number": rep_number,
         "e_b": instance["e_b"],
         "e_n": instance["e_n"],
         "a_max": instance["a_max"],
