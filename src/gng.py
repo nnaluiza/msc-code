@@ -24,8 +24,10 @@ class GrowingNeuralGas:
         """Initializes the GrowingNeuralGas class"""
         # Ensure input_data is a NumPy array
         if not isinstance(input_data, np.ndarray):
+            self.original_data = np.array(input_data, dtype=float)
             self.data = np.array(input_data, dtype=float)
         else:
+            self.original_data = np.array(input_data, dtype=float)
             self.data = input_data.astype(float)
         self.network = None
         self.units_created = 0
@@ -276,8 +278,22 @@ class GrowingNeuralGas:
         """Returns the number of clusters in the network"""
         return nx.number_connected_components(self.network)
 
+    # def cluster_data(self):
+    #     """Clusters the data using the network"""
+    #     unit_to_cluster = np.zeros(self.units_created)
+    #     cluster = 0
+    #     for c in nx.connected_components(self.network):
+    #         for unit in c:
+    #             unit_to_cluster[unit] = cluster
+    #         cluster += 1
+    #     clustered_data = []
+    #     for observation in self.data:
+    #         nearest_units = self.find_nearest_units(observation)
+    #         s = nearest_units[0]
+    #         clustered_data.append((observation, unit_to_cluster[s]))
+    #     return clustered_data
+
     def cluster_data(self):
-        """Clusters the data using the network"""
         unit_to_cluster = np.zeros(self.units_created)
         cluster = 0
         for c in nx.connected_components(self.network):
@@ -285,7 +301,7 @@ class GrowingNeuralGas:
                 unit_to_cluster[unit] = cluster
             cluster += 1
         clustered_data = []
-        for observation in self.data:
+        for observation in self.original_data:
             nearest_units = self.find_nearest_units(observation)
             s = nearest_units[0]
             clustered_data.append((observation, unit_to_cluster[s]))

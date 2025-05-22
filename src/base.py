@@ -102,8 +102,8 @@ def create_knowledge_base(clustered_data, instance, start, end, global_error, nu
         label = item[1]
         labels.append(label)
 
-    data = np.array(data)
-    labels = np.array(labels)
+    # data = np.array(data)
+    # labels = np.array(labels)
 
     silhouette_avg = metrics.silhouette_score(data, labels, metric="euclidean")
     davies_bouldin = metrics.davies_bouldin_score(data, labels)

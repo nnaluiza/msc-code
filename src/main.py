@@ -88,7 +88,7 @@ def train_network(seed, size, rep, reps, distance_metric, dataset_name, m):
         )
 
         export_clustered_data(dataset_name, gng.cluster_data(), seed, rep, reps, i)
-        gng.plot_cluster(gng.cluster_data())
+        gng.plot_clusters(gng.cluster_data())
 
         global_error = gng.compute_global_error()
         num_clusters = gng.number_of_clusters()
