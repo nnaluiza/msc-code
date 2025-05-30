@@ -1,106 +1,158 @@
 """Imports necessary modules"""
 
 import random
+import sys
 import time
+from datetime import timedelta
 
-from base import create_knowledge_base, create_working_memory, get_data_training
+from base import (
+    classify_knowledge_base,
+    create_knowledge_base,
+    create_working_memory,
+    get_data_training,
+    split_knowledge_base,
+)
+from decision_tree import train_tree
 from gng import GrowingNeuralGas
+from params import update_limits
 from utils import (
     aux_folders,
-    export_and_upload_logs,
+    aux_folders_limits,
+    aux_folders_tree,
     export_clustered_data,
     export_knowledge_base_csv,
     export_working_memory_csv,
+    get_formatted_time,
+    get_knowledge_base_file,
 )
 
 
-def run_model(seed, size, reps):
+def run_model(seed, size, reps, distance_metric, dataset_name, m):
     """Runs train_network a specified number of times"""
+    random.seed(seed)
+
+    start_time = time.time()
 
     for i in range(1, reps + 1):
         print(f"Rep {i} of {reps} for train model")
         print("-" * 100 + "\n")
-        train_network(seed, size, i, reps)
+        train_network(seed, size, i, reps, distance_metric, dataset_name, m)
         print(f"Completed rep {i} of {reps}")
         print("-" * 100 + "\n")
 
+    end_time = time.time()
+    total_time = get_formatted_time(start_time, end_time)
+    print(f"\nTraining all done in ~{total_time}\n")
 
-def train_network(seed, size, rep, reps):
-    """Specifies the random seed for maintaining repeatability in training."""
 
-    random.seed(seed)
+def train_network(seed, size, rep, reps, distance_metric, dataset_name, m):
+    """Trains the network for a single repetition."""
+    rep_seed = seed + rep
 
     print("Generating working memory...")
-    working_memory = create_working_memory(seed, size)
-    export_working_memory_csv(working_memory, seed, rep, reps)
-    print("Done.\n")
+    start_time_WM = time.time()
+    files = aux_folders_limits(dataset_name, seed, rep, reps)
+    working_memory = create_working_memory(rep_seed, size, files["limits_file"])
+    if not working_memory:
+        raise ValueError(f"create_working_memory returned an empty or None working_memory for rep {rep}")
+    export_working_memory_csv(dataset_name, working_memory, seed, rep, reps)
+    end_time_WM = time.time()
+    total_time_WM = get_formatted_time(start_time_WM, end_time_WM)
+    print(f"\nDone in ~{total_time_WM}.\n")
 
     print("Gathering data...")
-    data = get_data_training("chainlink.arff")
-    print("Done.\n")
+    start_time_GD = time.time()
+    data, true_labels = get_data_training(dataset_name)
+    end_time_GD = time.time()
+    total_time_GD = get_formatted_time(start_time_GD, end_time_GD)
+    print(f"\nDone in ~{total_time_GD}.\n")
 
     print("Starting training...\n")
 
-    knowledge_base = []
-    selected_instances = random.sample(working_memory, 5)
+    discarded_sets = 0
+    knowledge_base_file = get_knowledge_base_file(dataset_name, seed, rep, reps)
+    knowledge_base_entries = []
 
-    for i, instance in enumerate(selected_instances, 1):
-        aux_folders(seed, rep, reps, i)
+    for i, instance in enumerate(working_memory, 1):
+        base_dir = aux_folders(dataset_name, seed, rep, reps, i)
 
-        print(f"Iteration {i} of x")
+        print(f"Iteration {i} of {len(working_memory)}")
         values = list(instance.values())
         print(f"Chosen instance: {instance}")
 
         print("Fitting neural network...\n")
-        start = time.time()
 
-        gng = GrowingNeuralGas(data, seed, rep, reps, i)
-        gng.fit_network(e_b=values[0], e_n=values[1], a_max=values[2], l=values[3], a=values[4], d=values[5], passes=values[6])
-        export_clustered_data(gng.cluster_data(), seed, rep, reps, i)
+        gng = GrowingNeuralGas(base_dir, data, seed, rep, reps, i, distance_metric=distance_metric)
+        start, end = gng.fit_network(
+            e_b=values[0], e_n=values[1], a_max=values[2], l=values[3], a=values[4], d=values[5], passes=values[6]
+        )
 
-        end = time.time()
+        export_clustered_data(dataset_name, gng.cluster_data(), seed, rep, reps, i)
+        gng.plot_clusters(gng.cluster_data())
 
-        if gng.number_of_clusters() > 1:
-            print("\nFound %d clusters.\n" % gng.number_of_clusters())
-            knowledge_base.append(create_knowledge_base(gng.cluster_data(), instance, start, end))
+        global_error = gng.compute_global_error()
+        num_clusters = gng.number_of_clusters()
 
+        if num_clusters > 1:
+            print("\nFound %d clusters.\n" % num_clusters)
+            knowledge_entry = create_knowledge_base(
+                gng.cluster_data(), instance, start, end, global_error, num_clusters, i, true_labels
+            )
+            knowledge_base_entries.append(knowledge_entry)
         else:
-            print("\nFound %d cluster.\n" % gng.number_of_clusters())
+            print("\nFound %d cluster.\n" % num_clusters)
             print("Only one cluster found. The training and the parameter set used will be disregarded.\n")
+            discarded_sets += 1
 
         print("-" * 100)
 
-    print("Generating knowledge base...")
-    export_knowledge_base_csv(knowledge_base, seed, rep, reps)
-    print("Done.\n")
+    if knowledge_base_entries:
+        sorted_entries = classify_knowledge_base(knowledge_base_entries, rep, reps)
+        if sorted_entries:
+            export_knowledge_base_csv(knowledge_base_file, dataset_name, sorted_entries, seed, rep, reps, discarded_sets, m)
+        else:
+            print("Warning: No sorted entries from classify_knowledge_base, skipping export")
+    else:
+        print("Warning: No knowledge base entries generated, skipping classification and export")
 
     print("\nTraining all done.\n")
+
+    print("Starting tree training...\n")
+    start_time_TT = time.time()
+    tree_path = aux_folders_tree(dataset_name, seed, rep, reps)
+    rules = train_tree(dataset_name, rep, reps, seed, knowledge_base_file, tree_path)
+    for r in rules:
+        print(r)
+    end_time_TT = time.time()
+    total_time_TT = get_formatted_time(start_time_TT, end_time_TT)
+    print(f"\nDone in ~{total_time_TT}.\n")
+
+    print("Updating limits...\n")
+    start_time_UL = time.time()
+    limits_to_update = split_knowledge_base(rules, knowledge_base_file, files["limits_file"])
+    update_limits(limits_to_update, files["updated_limits_file"])
+    end_time_UL = time.time()
+    total_time_UL = get_formatted_time(start_time_UL, end_time_UL)
+    print(f"\nDone in ~{total_time_UL}.\n")
 
 
 def main(params):
     """Parses command-line parameters and initiates the model training process."""
-    if len(params) != 3:
-        print("Error: Expected 3 parameters (seed, size, reps)")
-        print("Usage: python run.py <seed> <size> <reps>")
+    print(f"Received parameters: {params}")
+    if len(params) != 5:
+        print("Error: Expected 5 parameters (seed, size, reps, distance_metric, dataset_name)")
+        print("Usage: python run.py <seed> <size> <reps> <distance_metric> <dataset_name>")
+        print("Example: python run.py 42 1000 5 euclidean iris")
         return
 
     seed = int(params[0])
     size = int(params[1])
     reps = int(params[2])
+    distance_metric = params[3]
+    dataset_name = params[4]
 
-    run_model(seed, size, reps)
-
-    # Export and upload logs at the end
-    suffix = f"_seed{seed}_reps{reps}"
-    export_and_upload_logs(
-        base_dir="output",  # Directory where ZIP will be saved locally
-        suffix=suffix,  # Unique identifier for this run
-        folder_id="YOUR_FOLDER_ID",  # Replace with your Google Drive folder ID
-        key_file="service-account-key.json",  # Path to your service account key
-    )
+    run_model(seed, size, reps, distance_metric, dataset_name, size)
 
 
 if __name__ == "__main__":
-    import sys
-
     main(sys.argv[1:])

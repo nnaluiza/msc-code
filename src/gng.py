@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 from scipy import spatial
+from scipy.stats import pearsonr
 from sklearn import decomposition
 
 """
@@ -19,23 +20,51 @@ Information Processing Systems 7, 1995.
 class GrowingNeuralGas:
     """GrowingNeuralGas class"""
 
-    def __init__(self, input_data, seed, rep, reps, i):
+    def __init__(self, base_path, input_data, seed, rep, reps, i, distance_metric="euclidean"):
         """Initializes the GrowingNeuralGas class"""
+        # Ensure input_data is a NumPy array
+        if not isinstance(input_data, np.ndarray):
+            self.original_data = np.array(input_data, dtype=float)
+            self.data = np.array(input_data, dtype=float)
+        else:
+            self.original_data = np.array(input_data, dtype=float)
+            self.data = input_data.astype(float)
         self.network = None
-        self.data = input_data
         self.units_created = 0
         self.seed = seed
         self.rep = rep
         self.reps = reps
         self.i = i
+        self.base_path = base_path
+        # Validate and set distance metric
+        valid_metrics = ["euclidean", "cityblock", "cosine", "pearson"]
+        if distance_metric not in valid_metrics:
+            raise ValueError(f"distance_metric must be one of {valid_metrics}")
+        self.distance_metric = distance_metric
         plt.style.use("ggplot")
+
+    def compute_distance(self, vector1, vector2):
+        """Computes distance between two vectors based on the specified metric"""
+        # Convert inputs to NumPy arrays if they aren't already
+        vector1 = np.array(vector1, dtype=float) if not isinstance(vector1, np.ndarray) else vector1
+        vector2 = np.array(vector2, dtype=float) if not isinstance(vector2, np.ndarray) else vector2
+        try:
+            if self.distance_metric == "pearson":
+                # Pearson correlation as a distance: 1 - correlation
+                corr, _ = pearsonr(vector1, vector2)
+                return 1 - corr
+            else:
+                return spatial.distance.cdist(vector1.reshape(1, -1), vector2.reshape(1, -1), metric=self.distance_metric)[0][0]
+        except ValueError:
+            # Handle cases like constant vectors for pearson or invalid inputs
+            return 1.0
 
     def find_nearest_units(self, observation):
         """Finds the nearest unit to a given observation"""
         distance = []
         for u, attributes in self.network.nodes(data=True):
             vector = attributes["vector"]
-            dist = spatial.distance.euclidean(vector, observation)
+            dist = self.compute_distance(vector, observation)
             distance.append((u, dist))
         distance.sort(key=lambda x: x[1])
         ranking = [u for u, dist in distance]
@@ -58,7 +87,7 @@ class GrowingNeuralGas:
             self.network.remove_node(u)
 
     def fit_network(self, e_b, e_n, a_max, l, a, d, passes, plot_evolution=False):
-        base_dir = f"logs/visualization/seed-{self.seed}_reps-{self.reps}/rep{self.rep}/i{self.i}"
+        base_dir = self.base_path
 
         """Trains the GNG algorithm on a given dataset"""
         """Logging variables"""
@@ -70,8 +99,8 @@ class GrowingNeuralGas:
         self.units_created = 0
         np.random.seed(self.seed)
         """ 0. start with two units a and b at random position w_a and w_b """
-        w_a = [np.random.uniform(-2, 2) for _ in range(np.shape(self.data)[1])]
-        w_b = [np.random.uniform(-2, 2) for _ in range(np.shape(self.data)[1])]
+        w_a = np.random.uniform(-2, 2, size=np.shape(self.data)[1])
+        w_b = np.random.uniform(-2, 2, size=np.shape(self.data)[1])
         self.network = nx.Graph()
         self.e_b = e_b
         self.e_n = e_n
@@ -83,12 +112,13 @@ class GrowingNeuralGas:
         sequence = 0
 
         """Initialize the start time for the training process"""
-        start_time = 0
         start_time = time.time()
+
+        max_vector_value = 1e6
+        max_error_value = 1e10
 
         for p in range(passes):
             """Initialize the start time of the current iteration"""
-            start = 0
             start = time.time()
 
             print("   Pass #%d" % (p + 1))
@@ -103,17 +133,26 @@ class GrowingNeuralGas:
                 for u, v, attributes in self.network.edges(data=True, nbunch=[s_1]):
                     self.network.add_edge(u, v, age=attributes["age"] + 1)
                 """ 4. Add the squared distance between the observation and the nearest unit in input space """
-                self.network.nodes[s_1]["error"] += (
-                    spatial.distance.euclidean(observation, self.network.nodes[s_1]["vector"]) ** 2
-                )
+                error_increment = self.compute_distance(observation, self.network.nodes[s_1]["vector"]) ** 2
+                self.network.nodes[s_1]["error"] += error_increment
+
+                self.network.nodes[s_1]["error"] = min(self.network.nodes[s_1]["error"], max_error_value)
                 """ 5. Move s_1 and its direct topological neighbors towards the observation by the fractions """
                 """ e_b and e_n, respectively, of the total distance """
                 update_w_s_1 = self.e_b * (np.subtract(observation, self.network.nodes[s_1]["vector"]))
                 self.network.nodes[s_1]["vector"] = np.add(self.network.nodes[s_1]["vector"], update_w_s_1)
 
+                self.network.nodes[s_1]["vector"] = np.clip(
+                    self.network.nodes[s_1]["vector"], -max_vector_value, max_vector_value
+                )
+
                 for neighbor in self.network.neighbors(s_1):
                     update_w_s_n = self.e_n * (np.subtract(observation, self.network.nodes[neighbor]["vector"]))
                     self.network.nodes[neighbor]["vector"] = np.add(self.network.nodes[neighbor]["vector"], update_w_s_n)
+
+                    self.network.nodes[neighbor]["vector"] = np.clip(
+                        self.network.nodes[neighbor]["vector"], -max_vector_value, max_vector_value
+                    )
                 """ 6. If s_1 and s_2 are connected by an edge, set the age of this edge to zero """
                 """ if such an edge doesn't exist, create it """
                 self.network.add_edge(s_1, s_2, age=0)
@@ -124,7 +163,6 @@ class GrowingNeuralGas:
                 steps += 1
                 if steps % l == 0:
                     if plot_evolution:
-                        # self.plot_network("logs/visualization/sequence/" + str(sequence) + ".png")
                         self.plot_network(f"{base_dir}/sequence/" + str(sequence) + ".png")
                     sequence += 1
                     """ 8.a Determine the unit q with the maximum accumulated error """
@@ -147,6 +185,8 @@ class GrowingNeuralGas:
                             self.network.nodes[f]["vector"],
                         )
                     )
+
+                    w_r = np.clip(w_r, -max_vector_value, max_vector_value)
                     r = self.units_created
                     self.units_created += 1
                     """ 8.c Insert edges connecting the new unit r with q and f """
@@ -160,6 +200,10 @@ class GrowingNeuralGas:
                     self.network.nodes[q]["error"] *= a
                     self.network.nodes[f]["error"] *= a
                     self.network.nodes[r]["error"] = self.network.nodes[q]["error"]
+
+                    self.network.nodes[q]["error"] = min(self.network.nodes[q]["error"], max_error_value)
+                    self.network.nodes[f]["error"] = min(self.network.nodes[f]["error"], max_error_value)
+                    self.network.nodes[r]["error"] = min(self.network.nodes[r]["error"], max_error_value)
                 """ 9. Decrease all error variables by multiplying them with a constant d """
                 error = 0
                 for u in self.network.nodes():
@@ -170,80 +214,86 @@ class GrowingNeuralGas:
                 total_units.append(self.units_created)
                 for u in self.network.nodes():
                     self.network.nodes[u]["error"] *= d
-                    if self.network.degree(nbunch=[u]) == 0:
-                        print(u)
+                    self.network.nodes[u]["error"] = min(self.network.nodes[u]["error"], max_error_value)
             global_error.append(self.compute_global_error())
 
             end = time.time()
             execution = end - start
-            time_pass = str(timedelta(seconds=round(execution)))
-            execution_time = time_pass.split(":")
-            print(
-                "   Pass #%d" % (p + 1)
-                + " - DONE in ~"
-                + execution_time[0]
-                + "h:"
-                + execution_time[1]
-                + "m:"
-                + execution_time[2]
-                + "s.\n"
-            )
+            total_seconds = int(execution)
+            milliseconds = int((execution % 1) * 1000)
+            hours, remainder = divmod(total_seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            print(f"   Pass #{p + 1} - DONE in ~{hours}h:{minutes:02d}m:{seconds:02d}s.{milliseconds:03d}ms.\n")
 
         end_time = time.time()
         total_time = end_time - start_time
-        total = str(timedelta(seconds=round(total_time)))
-        total_execution_time = total.split(":")
-        print(
-            "Total execution time in ~"
-            + total_execution_time[0]
-            + "h:"
-            + total_execution_time[1]
-            + "m:"
-            + total_execution_time[2]
-            + "s.\n"
-        )
+        total_seconds = int(total_time)
+        milliseconds = int((total_time % 1) * 1000)
+        hours, remainder = divmod(total_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        print(f"Total execution time in ~{hours}h:{minutes:02d}m:{seconds:02d}s.{milliseconds:03d}ms.\n")
+
+        accumulated_local_error = np.clip(accumulated_local_error, 0, max_error_value)
+        global_error = np.clip(global_error, 0, max_error_value)
 
         plt.clf()
         plt.title("Accumulated local error")
         plt.xlabel("iterations")
         plt.plot(range(len(accumulated_local_error)), accumulated_local_error)
-        # plt.savefig("logs/visualization/accumulated_local_error.png")
         plt.savefig(f"{base_dir}/accumulated_local_error.png")
+        plt.close()
 
         plt.clf()
         plt.title("Global error")
         plt.xlabel("passes")
         plt.plot(range(len(global_error)), global_error)
-        # plt.savefig("logs/visualization/global_error.png")
         plt.savefig(f"{base_dir}/global_error.png")
+        plt.close()
 
         plt.clf()
         plt.title("Neural network properties")
         plt.plot(range(len(network_order)), network_order, label="Network order")
         plt.plot(range(len(network_size)), network_size, label="Network size")
         plt.legend()
-        # plt.savefig("logs/visualization/network_properties.png")
         plt.savefig(f"{base_dir}/network_properties.png")
+        plt.close()
+
+        return start_time, end_time
 
     def plot_network(self, file_path):
         """Plots the GNG network to a file"""
         plt.clf()
-        plt.scatter(self.data[:, 0], self.data[:, 1])
+        clipped_data = np.clip(self.data, -1e6, 1e6)
+        plt.scatter(clipped_data[:, 0], clipped_data[:, 1])
         node_pos = {}
         for u in self.network.nodes():
-            vector = self.network.nodes[u]["vector"]
+            vector = np.clip(self.network.nodes[u]["vector"], -1e6, 1e6)
             node_pos[u] = (vector[0], vector[1])
         nx.draw(self.network, pos=node_pos)
         plt.draw()
-
         plt.savefig(file_path)
+        plt.close()
 
     def number_of_clusters(self):
         """Returns the number of clusters in the network"""
         return nx.number_connected_components(self.network)
 
+    # def cluster_data(self):
+    #     """Clusters the data using the network"""
+    #     unit_to_cluster = np.zeros(self.units_created)
+    #     cluster = 0
+    #     for c in nx.connected_components(self.network):
+    #         for unit in c:
+    #             unit_to_cluster[unit] = cluster
+    #         cluster += 1
+    #     clustered_data = []
+    #     for observation in self.data:
+    #         nearest_units = self.find_nearest_units(observation)
+    #         s = nearest_units[0]
+    #         clustered_data.append((observation, unit_to_cluster[s]))
+    #     return clustered_data
+
     def cluster_data(self):
-        """Clusters the data using the network"""
         unit_to_cluster = np.zeros(self.units_created)
         cluster = 0
         for c in nx.connected_components(self.network):
@@ -251,7 +301,7 @@ class GrowingNeuralGas:
                 unit_to_cluster[unit] = cluster
             cluster += 1
         clustered_data = []
-        for observation in self.data:
+        for observation in self.original_data:
             nearest_units = self.find_nearest_units(observation)
             s = nearest_units[0]
             clustered_data.append((observation, unit_to_cluster[s]))
@@ -267,26 +317,44 @@ class GrowingNeuralGas:
         return transformed_clustered_data
 
     def plot_clusters(self, clustered_data):
-        """Plots the clustered data"""
+        """Plots the clustered data with a large variety of colors"""
         number_of_clusters = nx.number_connected_components(self.network)
         plt.clf()
         plt.title("Cluster affectation")
-        color = ["r", "b", "g", "k", "m", "r", "b", "g", "k", "m"]
+
+        cmap = plt.cm.get_cmap("tab20")
+        colors = [cmap(i / 20) for i in range(20)]
+
+        cmap2 = plt.cm.get_cmap("Set3")
+        colors.extend([cmap2(i / 12) for i in range(12)])
+        cmap3 = plt.cm.get_cmap("Paired")
+        colors.extend([cmap3(i / 12) for i in range(12)])
+        cmap4 = plt.cm.get_cmap("viridis")
+        colors.extend([cmap4(i / 20) for i in range(20)])
+
+        if number_of_clusters > len(colors):
+            cmap_fallback = plt.cm.get_cmap("rainbow")
+            colors = [cmap_fallback(i / number_of_clusters) for i in range(number_of_clusters)]
+        else:
+            colors = colors[:number_of_clusters]
+
         for i in range(number_of_clusters):
             observations = [observation for observation, s in clustered_data if s == i]
             if len(observations) > 0:
-                observations = np.array(observations)
+                observations = np.clip(np.array(observations), -1e6, 1e6)
                 plt.scatter(
                     observations[:, 0],
                     observations[:, 1],
-                    color=color[i],
-                    label="cluster #" + str(i),
+                    color=colors[i],
+                    label=f"cluster #{i}",
                 )
 
-        plt.legend()
+        plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize="small")
+        plt.tight_layout()
 
-        base_dir = f"logs/visualization/seed-{self.seed}_reps-{self.reps}/rep{self.rep}/i{self.i}"
+        base_dir = self.base_path
         plt.savefig(f"{base_dir}/clusters.png")
+        plt.close()
 
     def compute_global_error(self):
         """Calculates the global error of the algorithm"""
@@ -294,5 +362,6 @@ class GrowingNeuralGas:
         for observation in self.data:
             nearest_units = self.find_nearest_units(observation)
             s_1 = nearest_units[0]
-            global_error += spatial.distance.euclidean(observation, self.network.nodes[s_1]["vector"]) ** 2
+            dist = self.compute_distance(observation, self.network.nodes[s_1]["vector"])
+            global_error += dist**2
         return global_error

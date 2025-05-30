@@ -8,13 +8,27 @@ import pandas as pd
 from tabulate import tabulate
 
 
-def aux_folders(seed, rep, reps, i):
-    """Creates the necessary folders for visualization if they don't already exist"""
+def aux_folders_limits(dataset_name, seed, rep, reps):
+    """Creates the necessary folders to store the limits if they don't already exist"""
+    if not os.path.exists("logs/limits"):
+        os.makedirs("logs/limits")
 
+    dir_path = f"logs/limits/{dataset_name}/seed-{seed}_reps-{reps}"
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+
+    file_limits_name = f"{dir_path}/limits_rep{rep}.json"
+    file_updated_limits_name = f"{dir_path}/updated_limits_rep{rep}.json"
+
+    return {"limits_file": file_limits_name, "updated_limits_file": file_updated_limits_name}
+
+
+def aux_folders(dataset_name, seed, rep, reps, i):
+    """Creates the necessary folders for visualization if they don't already exist"""
     if not os.path.exists("logs/visualization"):
         os.makedirs("logs/visualization")
 
-    dir_path = f"logs/visualization/seed-{seed}_reps-{reps}"
+    dir_path = f"logs/visualization/{dataset_name}/seed-{seed}_reps-{reps}"
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
@@ -30,6 +44,8 @@ def aux_folders(seed, rep, reps, i):
     if not os.path.exists(dir_path___):
         os.makedirs(dir_path___)
 
+    return dir_path__
+
 
 def show_working_memory(data):
     """Displays the working memory in a tabulated format"""
@@ -41,13 +57,13 @@ def show_working_memory(data):
     print("")
 
 
-def export_working_memory_csv(data, seed, rep, reps):
+def export_working_memory_csv(dataset_name, data, seed, rep, reps):
     """Exports the working memory to a CSV file"""
 
     if not os.path.exists("logs/working_memory"):
         os.makedirs("logs/working_memory")
 
-    dir_path = f"logs/working_memory/seed-{seed}_reps-{reps}"
+    dir_path = f"logs/working_memory/{dataset_name}/seed-{seed}_reps-{reps}"
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
@@ -57,6 +73,7 @@ def export_working_memory_csv(data, seed, rep, reps):
         writer = csv.writer(csvfile, delimiter=",")
         writer.writerow([f"# Working Memory - Execution: {rep} of {reps}"])
         writer.writerow(["# Seed: {}".format(seed)])
+        writer.writerow(["# Dataset: {}".format(dataset_name)])
         writer.writerow(["e_b", "e_n", "a_max", "l", "a", "d", "passes"])
 
         for instance in data:
@@ -73,61 +90,113 @@ def export_working_memory_csv(data, seed, rep, reps):
             )
 
 
-def export_knowledge_base_csv(data, seed, rep, reps):
-    """Exports the knowledge data to a CSV file"""
-
+def get_knowledge_base_file(dataset_name, seed, rep, reps):
+    """Creates the necessary folders for the knowledge bases if they don't already exist"""
     if not os.path.exists("logs/knowledge_base"):
         os.makedirs("logs/knowledge_base")
 
-    dir_path = f"logs/knowledge_base/seed-{seed}_reps-{reps}"
+    dir_path = f"logs/knowledge_base/{dataset_name}/seed-{seed}_reps-{reps}"
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
     file_name = f"{dir_path}/knowledge_base_rep{rep}.csv"
 
-    with open(f"{file_name}", "w", newline="") as csvfile:
-        writer = csv.writer(csvfile, delimiter=",")
-        writer.writerow([f"# Knowledge Base - Execution: {rep} of {reps}"])
-        writer.writerow(["# Seed: {}".format(seed)])
-        writer.writerow(
-            [
-                "e_b",
-                "e_n",
-                "a_max",
-                "l",
-                "a",
-                "d",
-                "passes",
-                "silhouette_avg",
-                "execution_time",
-                "class",
-            ]
-        )
+    return file_name
 
-        for instance in data:
+
+def export_knowledge_base_csv(file_name, dataset_name, data, seed, rep, reps, discarded_sets, working_memory_size, append=False):
+    """Exports the knowledge data to a CSV file"""
+
+    mode = "a" if append else "w"
+    with open(file_name, mode, newline="", encoding="utf-8") as csvfile:
+        writer = csv.writer(csvfile, delimiter=",")
+        if not append:
+            writer.writerow([f"# Knowledge Base - Execution: {rep} of {reps}"])
+            writer.writerow([f"# Working Memory generated sets: {working_memory_size} - Discarded sets: {discarded_sets}"])
+            writer.writerow([f"# Seed: {seed}"])
+            writer.writerow(["# Dataset: {}".format(dataset_name)])
             writer.writerow(
                 [
-                    instance["e_b"],
-                    instance["e_n"],
-                    instance["a_max"],
-                    instance["l"],
-                    instance["a"],
-                    instance["d"],
-                    instance["passes"],
-                    instance["silhouette_avg"],
-                    instance["execution_time"],
-                    instance["class"],
+                    "rep_number",
+                    "e_b",
+                    "e_n",
+                    "a_max",
+                    "l",
+                    "a",
+                    "d",
+                    "passes",
+                    "clusters_number",
+                    "silhouette_avg",
+                    "davies_bouldin_index",
+                    "calinski_harabasz_index",
+                    "adjusted_rand_index",
+                    "rand_index",
+                    "dunn_index",
+                    "global_error",
+                    "normalized_global_error",
+                    "execution_time",
+                    "class",
+                ]
+            )
+
+        if isinstance(data, list):
+            for instance in data:
+                writer.writerow(
+                    [
+                        instance["rep_number"],
+                        instance["e_b"],
+                        instance["e_n"],
+                        instance["a_max"],
+                        instance["l"],
+                        instance["a"],
+                        instance["d"],
+                        instance["passes"],
+                        instance["clusters_number"],
+                        instance["silhouette_avg"],
+                        instance["davies_bouldin_index"],
+                        instance["calinski_harabasz_index"],
+                        instance["adjusted_rand_index"],
+                        instance["rand_index"],
+                        instance["dunn_index"],
+                        instance["global_error"],
+                        instance["normalized_global_error"],
+                        instance["execution_time"],
+                        instance["class"],
+                    ]
+                )
+        else:
+            writer.writerow(
+                [
+                    data["rep_number"],
+                    data["e_b"],
+                    data["e_n"],
+                    data["a_max"],
+                    data["l"],
+                    data["a"],
+                    data["d"],
+                    data["passes"],
+                    data["clusters_number"],
+                    data["silhouette_avg"],
+                    data["davies_bouldin_index"],
+                    data["calinski_harabasz_index"],
+                    data["adjusted_rand_index"],
+                    data["rand_index"],
+                    data["dunn_index"],
+                    data["global_error"],
+                    data["normalized_global_error"],
+                    data["execution_time"],
+                    data["class"],
                 ]
             )
 
 
-def export_clustered_data(data, seed, rep, reps, i):
+def export_clustered_data(dataset_name, data, seed, rep, reps, i):
     """Exports the clustered data to a text file, which is solely used for comparison of the results."""
 
-    if not os.path.exists("logs/clusters_log"):
-        os.makedirs("logs/clusters_log")
+    if not os.path.exists("logs/clusters"):
+        os.makedirs("logs/clusters")
 
-    dir_path = f"logs/clusters_log/seed-{seed}_reps-{reps}"
+    dir_path = f"logs/clusters/{dataset_name}/seed-{seed}_reps-{reps}"
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
@@ -140,3 +209,38 @@ def export_clustered_data(data, seed, rep, reps, i):
     file = io.open(f"{file_name}", "w")
     file.write(str(data))
     file.close()
+
+
+def aux_folders_rules(dataset_name, seed, rep, reps):
+    """Creates the necessary folders for the rules if they don't already exist"""
+    if not os.path.exists("logs/rules"):
+        os.makedirs("logs/rules")
+
+    dir_path = f"logs/rules/{dataset_name}/seed-{seed}_reps-{reps}"
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+
+    file_name = f"{dir_path}/extracted_rules_rep{rep}.txt"
+    return file_name
+
+
+def aux_folders_tree(dataset_name, seed, rep, reps):
+    """Creates the necessary folders for the tree images if they don't already exist"""
+    if not os.path.exists("logs/tree"):
+        os.makedirs("logs/tree")
+
+    dir_path = f"logs/tree/{dataset_name}/seed-{seed}_reps-{reps}"
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+
+    return dir_path
+
+
+def get_formatted_time(start_time, end_time):
+    total_time = end_time - start_time
+    total_seconds = int(total_time)
+    milliseconds = int((total_time % 1) * 1000)
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    return f"{hours}h:{minutes:02d}m:{seconds:02d}s.{milliseconds:03d}ms."
