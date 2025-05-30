@@ -8,27 +8,27 @@ import pandas as pd
 from tabulate import tabulate
 
 
-def aux_folders_limits(dataset_name, seed, rep, reps):
+def aux_folders_limits(dataset_name, seed, rep, reps, distance):
     """Creates the necessary folders to store the limits if they don't already exist"""
     if not os.path.exists("logs/limits"):
         os.makedirs("logs/limits")
 
-    dir_path = f"logs/limits/{dataset_name}/seed-{seed}_reps-{reps}"
+    dir_path = f"logs/limits/{dataset_name}/seed-{seed}_reps-{reps}_{distance}"
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
     file_limits_name = f"{dir_path}/limits_rep{rep}.json"
-    file_updated_limits_name = f"{dir_path}/updated_limits_rep{rep}.json"
+    file_updated_limits_name = f"{dir_path}/updated_limits_rep{rep}_{distance}.json"
 
     return {"limits_file": file_limits_name, "updated_limits_file": file_updated_limits_name}
 
 
-def aux_folders(dataset_name, seed, rep, reps, i):
+def aux_folders(dataset_name, seed, rep, reps, i, distance):
     """Creates the necessary folders for visualization if they don't already exist"""
     if not os.path.exists("logs/visualization"):
         os.makedirs("logs/visualization")
 
-    dir_path = f"logs/visualization/{dataset_name}/seed-{seed}_reps-{reps}"
+    dir_path = f"logs/visualization/{dataset_name}/seed-{seed}_reps-{reps}_{distance}"
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
@@ -57,13 +57,13 @@ def show_working_memory(data):
     print("")
 
 
-def export_working_memory_csv(dataset_name, data, seed, rep, reps):
+def export_working_memory_csv(dataset_name, data, seed, rep, reps, distance):
     """Exports the working memory to a CSV file"""
 
     if not os.path.exists("logs/working_memory"):
         os.makedirs("logs/working_memory")
 
-    dir_path = f"logs/working_memory/{dataset_name}/seed-{seed}_reps-{reps}"
+    dir_path = f"logs/working_memory/{dataset_name}/seed-{seed}_reps-{reps}_{distance}"
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
@@ -73,7 +73,7 @@ def export_working_memory_csv(dataset_name, data, seed, rep, reps):
         writer = csv.writer(csvfile, delimiter=",")
         writer.writerow([f"# Working Memory - Execution: {rep} of {reps}"])
         writer.writerow(["# Seed: {}".format(seed)])
-        writer.writerow(["# Dataset: {}".format(dataset_name)])
+        writer.writerow([f"# Dataset: {dataset_name} - Distance: {distance}"])
         writer.writerow(["e_b", "e_n", "a_max", "l", "a", "d", "passes"])
 
         for instance in data:
@@ -90,12 +90,12 @@ def export_working_memory_csv(dataset_name, data, seed, rep, reps):
             )
 
 
-def get_knowledge_base_file(dataset_name, seed, rep, reps):
+def get_knowledge_base_file(dataset_name, seed, rep, reps, distance):
     """Creates the necessary folders for the knowledge bases if they don't already exist"""
     if not os.path.exists("logs/knowledge_base"):
         os.makedirs("logs/knowledge_base")
 
-    dir_path = f"logs/knowledge_base/{dataset_name}/seed-{seed}_reps-{reps}"
+    dir_path = f"logs/knowledge_base/{dataset_name}/seed-{seed}_reps-{reps}_{distance}"
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
@@ -104,7 +104,9 @@ def get_knowledge_base_file(dataset_name, seed, rep, reps):
     return file_name
 
 
-def export_knowledge_base_csv(file_name, dataset_name, data, seed, rep, reps, discarded_sets, working_memory_size, append=False):
+def export_knowledge_base_csv(
+    file_name, dataset_name, distance, data, seed, rep, reps, discarded_sets, working_memory_size, append=False
+):
     """Exports the knowledge data to a CSV file"""
 
     mode = "a" if append else "w"
@@ -114,7 +116,7 @@ def export_knowledge_base_csv(file_name, dataset_name, data, seed, rep, reps, di
             writer.writerow([f"# Knowledge Base - Execution: {rep} of {reps}"])
             writer.writerow([f"# Working Memory generated sets: {working_memory_size} - Discarded sets: {discarded_sets}"])
             writer.writerow([f"# Seed: {seed}"])
-            writer.writerow(["# Dataset: {}".format(dataset_name)])
+            writer.writerow([f"# Dataset: {dataset_name} - Distance: {distance}"])
             writer.writerow(
                 [
                     "rep_number",
@@ -190,13 +192,13 @@ def export_knowledge_base_csv(file_name, dataset_name, data, seed, rep, reps, di
             )
 
 
-def export_clustered_data(dataset_name, data, seed, rep, reps, i):
+def export_clustered_data(dataset_name, data, seed, rep, reps, i, distance):
     """Exports the clustered data to a text file, which is solely used for comparison of the results."""
 
     if not os.path.exists("logs/clusters"):
         os.makedirs("logs/clusters")
 
-    dir_path = f"logs/clusters/{dataset_name}/seed-{seed}_reps-{reps}"
+    dir_path = f"logs/clusters/{dataset_name}/seed-{seed}_reps-{reps}_{distance}"
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
@@ -211,12 +213,12 @@ def export_clustered_data(dataset_name, data, seed, rep, reps, i):
     file.close()
 
 
-def aux_folders_rules(dataset_name, seed, rep, reps):
+def aux_folders_rules(dataset_name, seed, rep, reps, distance):
     """Creates the necessary folders for the rules if they don't already exist"""
     if not os.path.exists("logs/rules"):
         os.makedirs("logs/rules")
 
-    dir_path = f"logs/rules/{dataset_name}/seed-{seed}_reps-{reps}"
+    dir_path = f"logs/rules/{dataset_name}/seed-{seed}_reps-{reps}_{distance}"
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
@@ -224,12 +226,12 @@ def aux_folders_rules(dataset_name, seed, rep, reps):
     return file_name
 
 
-def aux_folders_tree(dataset_name, seed, rep, reps):
+def aux_folders_tree(dataset_name, seed, reps, distance):
     """Creates the necessary folders for the tree images if they don't already exist"""
     if not os.path.exists("logs/tree"):
         os.makedirs("logs/tree")
 
-    dir_path = f"logs/tree/{dataset_name}/seed-{seed}_reps-{reps}"
+    dir_path = f"logs/tree/{dataset_name}/seed-{seed}_reps-{reps}_{distance}"
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
