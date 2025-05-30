@@ -51,11 +51,11 @@ def train_network(seed, size, rep, reps, distance_metric, dataset_name, m):
 
     print("Generating working memory...")
     start_time_WM = time.time()
-    files = aux_folders_limits(dataset_name, seed, rep, reps)
+    files = aux_folders_limits(dataset_name, seed, rep, reps, distance_metric)
     working_memory = create_working_memory(rep_seed, size, files["limits_file"])
     if not working_memory:
         raise ValueError(f"create_working_memory returned an empty or None working_memory for rep {rep}")
-    export_working_memory_csv(dataset_name, working_memory, seed, rep, reps)
+    export_working_memory_csv(dataset_name, working_memory, seed, rep, reps, distance_metric)
     end_time_WM = time.time()
     total_time_WM = get_formatted_time(start_time_WM, end_time_WM)
     print(f"\nDone in ~{total_time_WM}.\n")
@@ -70,11 +70,11 @@ def train_network(seed, size, rep, reps, distance_metric, dataset_name, m):
     print("Starting training...\n")
 
     discarded_sets = 0
-    knowledge_base_file = get_knowledge_base_file(dataset_name, seed, rep, reps)
+    knowledge_base_file = get_knowledge_base_file(dataset_name, seed, rep, reps, distance_metric)
     knowledge_base_entries = []
 
     for i, instance in enumerate(working_memory, 1):
-        base_dir = aux_folders(dataset_name, seed, rep, reps, i)
+        base_dir = aux_folders(dataset_name, seed, rep, reps, i, distance_metric)
 
         print(f"Iteration {i} of {len(working_memory)}")
         values = list(instance.values())
@@ -82,12 +82,12 @@ def train_network(seed, size, rep, reps, distance_metric, dataset_name, m):
 
         print("Fitting neural network...\n")
 
-        gng = GrowingNeuralGas(base_dir, data, seed, rep, reps, i, distance_metric=distance_metric)
+        gng = GrowingNeuralGas(base_dir, data, seed, rep, reps, i, distance_metric)
         start, end = gng.fit_network(
             e_b=values[0], e_n=values[1], a_max=values[2], l=values[3], a=values[4], d=values[5], passes=values[6]
         )
 
-        export_clustered_data(dataset_name, gng.cluster_data(), seed, rep, reps, i)
+        export_clustered_data(dataset_name, gng.cluster_data(), seed, rep, reps, i, distance_metric)
         gng.plot_clusters(gng.cluster_data())
 
         global_error = gng.compute_global_error()
@@ -109,7 +109,9 @@ def train_network(seed, size, rep, reps, distance_metric, dataset_name, m):
     if knowledge_base_entries:
         sorted_entries = classify_knowledge_base(knowledge_base_entries, rep, reps)
         if sorted_entries:
-            export_knowledge_base_csv(knowledge_base_file, dataset_name, sorted_entries, seed, rep, reps, discarded_sets, m)
+            export_knowledge_base_csv(
+                knowledge_base_file, dataset_name, distance_metric, sorted_entries, seed, rep, reps, discarded_sets, m
+            )
         else:
             print("Warning: No sorted entries from classify_knowledge_base, skipping export")
     else:
@@ -119,8 +121,8 @@ def train_network(seed, size, rep, reps, distance_metric, dataset_name, m):
 
     print("Starting tree training...\n")
     start_time_TT = time.time()
-    tree_path = aux_folders_tree(dataset_name, seed, rep, reps)
-    rules = train_tree(dataset_name, rep, reps, seed, knowledge_base_file, tree_path)
+    tree_path = aux_folders_tree(dataset_name, seed, reps, distance_metric)
+    rules = train_tree(dataset_name, distance_metric, rep, reps, seed, knowledge_base_file, tree_path)
     for r in rules:
         print(r)
     end_time_TT = time.time()
