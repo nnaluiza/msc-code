@@ -12,7 +12,7 @@ from utils import aux_folders_rules
 
 
 def train_tree(dataset_name, distance_metric, rep, reps, seed, knowledge_base_file, tree_log_path):
-    """Trains a decision tree classifier using GNG parameters and class with cross-validated hyperparameters."""
+    """Trains a decision tree classifier using GNG parameters and class with cross-validated hyperparameters"""
     df = pd.read_csv(knowledge_base_file, delimiter=",", skiprows=4)
     columns_to_exclude = [
         "clusters_number",
