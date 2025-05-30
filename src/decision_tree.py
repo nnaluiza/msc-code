@@ -3,6 +3,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import GridSearchCV
 from sklearn.tree import DecisionTreeClassifier, export_text, plot_tree
 from sklearn.tree._tree import TREE_UNDEFINED
 
@@ -10,20 +11,9 @@ from rules import extract_rules
 from utils import aux_folders_rules
 
 
-def train_tree(dataset_name, rep, reps, seed, knowledge_base_file, tree_log_path):
-    """Trains a decision tree classifier using only the GNG parameters and class."""
-
-    clf = DecisionTreeClassifier(
-        random_state=seed,
-        min_samples_leaf=3,
-        criterion="gini",
-        max_depth=10,  # Limit depth to prevent overfitting
-        min_samples_split=5,  # Require at least 5 samples to split
-        max_leaf_nodes=50,  # Limit number of leaf nodes
-    )
-
+def train_tree(dataset_name, distance_metric, rep, reps, seed, knowledge_base_file, tree_log_path):
+    """Trains a decision tree classifier using GNG parameters and class with cross-validated hyperparameters."""
     df = pd.read_csv(knowledge_base_file, delimiter=",", skiprows=4)
-
     columns_to_exclude = [
         "clusters_number",
         "silhouette_avg",
@@ -38,25 +28,28 @@ def train_tree(dataset_name, rep, reps, seed, knowledge_base_file, tree_log_path
         "class",
         "rep_number",
     ]
-
     X = df.drop(columns_to_exclude, axis=1)
     y = df["class"]
-
+    param_grid = {
+        "max_depth": [5, 10, 15],
+        "min_samples_leaf": [3, 5, 10],
+        "min_samples_split": [5, 10],
+        "max_leaf_nodes": [30, 50, 100],
+    }
+    clf = GridSearchCV(DecisionTreeClassifier(random_state=seed, criterion="gini"), param_grid, cv=5, scoring="f1", n_jobs=-1)
     clf.fit(X, y)
-
+    best_clf = clf.best_estimator_
+    print(f"Best hyperparameters: {clf.best_params_}")
     names = list(X.columns)
     classes = ["1", "0"]
-
-    show_tree(clf, names, classes, rep, tree_log_path)
-
-    text_representation = export_text(clf, feature_names=names)
+    show_tree(best_clf, names, classes, rep, tree_log_path)
+    text_representation = export_text(best_clf, feature_names=names)
     print(text_representation)
     print("-" * 50)
+    return get_rules(dataset_name, distance_metric, best_clf, names, classes, rep, reps, seed)
 
-    return get_rules(dataset_name, clf, names, classes, rep, reps, seed)
 
-
-def get_rules(dataset_name, tree, feature_names, class_names, rep, reps, seed):
+def get_rules(dataset_name, distance_metric, tree, feature_names, class_names, rep, reps, seed):
     """Extract rules from the tree"""
     tree_ = tree.tree_
     feature_name = [feature_names[i] if i != TREE_UNDEFINED else "undefined!" for i in tree_.feature]
@@ -86,7 +79,7 @@ def get_rules(dataset_name, tree, feature_names, class_names, rep, reps, seed):
 
     rules = []
 
-    file_name = aux_folders_rules(dataset_name, seed, rep, reps)
+    file_name = aux_folders_rules(dataset_name, seed, rep, reps, distance_metric)
     with open(file_name, "w") as f:
         for path in paths:
             rule = "if "
