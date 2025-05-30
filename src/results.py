@@ -9,9 +9,9 @@ import numpy as np
 from scipy import stats
 
 
-def get_knowledge_base_files(dataset_name: str, seed: int, reps: int) -> List[str]:
-    """Returns a list of all knowledge base CSV files for a given dataset, seed, and reps."""
-    dir_path = f"logs/knowledge_base/{dataset_name}/seed-{seed}_reps-{reps}"
+def get_knowledge_base_files(dataset_name: str, seed: int, reps: int, distance_metric: str) -> List[str]:
+    """Returns a list of all knowledge base CSV files for a given dataset, seed, reps, and distance metric."""
+    dir_path = f"logs/knowledge_base/{dataset_name}/seed-{seed}_reps-{reps}_{distance_metric.lower()}"
     if not os.path.exists(dir_path):
         print(f"Directory not found: {dir_path}")
         return []
@@ -165,6 +165,7 @@ def export_statistics_csv(
     file_path = f"{dir_path}/statistics.csv"
 
     headers = [
+        "Statistic",
         "e_b",
         "e_n",
         "a_max",
@@ -185,114 +186,229 @@ def export_statistics_csv(
         writer = csv.writer(csvfile)
         writer.writerow(headers)
 
-        min_row = [
+        # Min row
+        min_row = ["min"] + [
             f"{float(stats.get(col, {}).get('min', 0)):.4f}" if stats.get(col, {}).get("min") is not None else ""
-            for col in headers
-        ] + [""]
-        writer.writerow(["min"] + min_row[1:])
+            for col in headers[1:]
+        ]
+        writer.writerow(min_row)
 
-        max_row = [
+        # Max row
+        max_row = ["max"] + [
             f"{float(stats.get(col, {}).get('max', 0)):.4f}" if stats.get(col, {}).get("max") is not None else ""
-            for col in headers
-        ] + [""]
-        writer.writerow(["max"] + max_row[1:])
+            for col in headers[1:]
+        ]
+        writer.writerow(max_row)
 
-        mean_row = [
+        # Mean row
+        mean_row = ["mean"] + [
             f"{float(stats.get(col, {}).get('mean', 0)):.4f}" if stats.get(col, {}).get("mean") is not None else ""
-            for col in headers
-        ] + [""]
-        writer.writerow(["mean"] + mean_row[1:])
+            for col in headers[1:]
+        ]
+        writer.writerow(mean_row)
 
-        std_row = [
+        # Std row
+        std_row = ["std"] + [
             f"{float(stats.get(col, {}).get('std', 0)):.4f}" if stats.get(col, {}).get("std") is not None else ""
-            for col in headers
-        ] + [""]
-        writer.writerow(["std"] + std_row[1:])
+            for col in headers[1:]
+        ]
+        writer.writerow(std_row)
 
-        ci_lower_row = [
+        # CI lower row
+        ci_lower_row = ["ci_lower"] + [
             f"{float(stats.get(col, {}).get('ci_lower', 0)):.4f}" if stats.get(col, {}).get("ci_lower") is not None else ""
-            for col in headers
-        ] + [""]
-        writer.writerow(["ci_lower"] + ci_lower_row[1:])
+            for col in headers[1:]
+        ]
+        writer.writerow(ci_lower_row)
 
-        ci_upper_row = [
+        # CI upper row
+        ci_upper_row = ["ci_upper"] + [
             f"{float(stats.get(col, {}).get('ci_upper', 0)):.4f}" if stats.get(col, {}).get("ci_upper") is not None else ""
-            for col in headers
-        ] + [""]
-        writer.writerow(["ci_upper"] + ci_upper_row[1:])
+            for col in headers[1:]
+        ]
+        writer.writerow(ci_upper_row)
 
     print(f"Statistics exported to: {file_path}")
 
 
-def create_boxplots(dataset_name: str, seed: int, reps: int, limits_data: Dict[int, Dict[str, Any]]):
-    """Creates separate normalized and raw boxplots for each parameter across all repetitions with data points."""
-    rep_numbers = sorted(limits_data.keys())
-    if not rep_numbers:
-        print("No limits data available for boxplots")
+def create_boxplots(dataset_name: str, seed: int, reps: int, kb_data: List[Dict[str, Any]]):
+    """Creates a boxplot for each parameter showing variation across iterations, one color per knowledge base, with value labels."""
+    if not kb_data:
+        print("No knowledge base data available for boxplots")
         return
 
     params = ["e_b", "e_n", "a_max", "l", "a", "d", "passes"]
-    data = {param: [] for param in params}
-
-    for rep in rep_numbers:
-        limits = limits_data[rep].get("limits", {})
-        for param in params:
-            min_val, max_val = limits.get(param, [0, 0])
-            data[param].append(min_val)
-            data[param].append(max_val)
-
-    # Normalized boxplots with data points
-    fig_norm, axes_norm = plt.subplots(2, 4, figsize=(16, 8), constrained_layout=True)
-    axes_norm = axes_norm.flatten()
-    for idx, param in enumerate(params):
-        if max(data[param]) - min(data[param]) > 0:
-            normalized = [(x - min(data[param])) / (max(data[param]) - min(data[param])) for x in data[param]]
-        else:
-            normalized = data[param]
-        axes_norm[idx].boxplot(normalized)
-        # Add scatter plot for data points
-        x_positions = np.random.normal(1, 0.04, len(normalized))  # Jitter for visibility
-        axes_norm[idx].scatter(x_positions, normalized, alpha=0.5, color="red", s=20)
-        axes_norm[idx].set_title(f"{param} (Normalized)")
-        axes_norm[idx].set_ylabel("Normalized Values (0 to 1)")
-        axes_norm[idx].grid(True, linestyle="--", alpha=0.7)
-    for ax in axes_norm[len(params) :]:
-        ax.remove()
-    plt.suptitle(f"Parameter Limits Variation (Normalized) Across All Reps (Seed: {seed}, Reps: {reps})")
-
     output_dir = f"logs/results/{dataset_name}/seed-{seed}_reps-{reps}"
     os.makedirs(output_dir, exist_ok=True)
-    output_path_norm = f"{output_dir}/parameter_limits_normalized_boxplots.png"
-    plt.savefig(output_path_norm)
-    plt.close()
-    print(f"Normalized boxplots saved to: {output_path_norm}")
 
-    # Raw boxplots with data points
-    fig_raw, axes_raw = plt.subplots(2, 4, figsize=(16, 8), constrained_layout=True)
-    axes_raw = axes_raw.flatten()
-    for idx, param in enumerate(params):
-        values = data[param]
-        axes_raw[idx].boxplot(values)
-        # Add scatter plot for data points
-        x_positions = np.random.normal(1, 0.04, len(values))  # Jitter for visibility
-        axes_raw[idx].scatter(x_positions, values, alpha=0.5, color="red", s=20)
-        axes_raw[idx].set_title(f"{param} (Raw)")
-        axes_raw[idx].set_ylabel("Raw Values")
-        axes_raw[idx].grid(True, linestyle="--", alpha=0.7)
-        axes_raw[idx].set_ylim(min(values) * 0.9, max(values) * 1.1)  # Dynamic y-limits
-    for ax in axes_raw[len(params) :]:
-        ax.remove()
-    plt.suptitle(f"Parameter Limits Variation (Raw) Across All Reps (Seed: {seed}, Reps: {reps})")
+    # Group data by repetition (knowledge base file)
+    rep_data = {}
+    for entry in kb_data:
+        rep = entry["rep"]
+        if rep not in rep_data:
+            rep_data[rep] = {param: [] for param in params}
+        for param in params:
+            if entry[param] is not None:
+                rep_data[rep][param].append(entry[param])
 
-    output_path_raw = f"{output_dir}/parameter_limits_raw_boxplots.png"
-    plt.savefig(output_path_raw)
-    plt.close()
-    print(f"Raw boxplots saved to: {output_path_raw}")
+    # Get unique repetitions
+    rep_numbers = sorted(rep_data.keys())
+    if not rep_numbers:
+        print("No repetition data available for boxplots")
+        return
+
+    # Create one figure per parameter
+    for param in params:
+        # Collect data for each repetition
+        all_data = [rep_data[rep][param] for rep in rep_numbers]
+
+        # Create figure
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        # Generate colors using a colormap
+        cmap = plt.get_cmap("tab10")  # Use a colormap with 10 distinct colors
+        colors = [cmap(i / len(rep_numbers)) for i in range(len(rep_numbers))]
+
+        # Create boxplots with different colors
+        box = ax.boxplot(all_data, patch_artist=True, labels=[f"Rep {r}" for r in rep_numbers])
+        for patch, color in zip(box["boxes"], colors):
+            patch.set_facecolor(color)
+
+        # Find the maximum whisker value across all boxplots to set y-axis limit
+        max_whisker = 0
+        for i in range(len(all_data)):
+            if all_data[i]:  # Skip empty data
+                whiskers = box["whiskers"][i * 2:i * 2 + 2]
+                whisker_max = whiskers[1].get_ydata()[1]  # Upper whisker
+                max_whisker = max(max_whisker, whisker_max)
+
+        # Add labels for Q1 and Q3
+        for i, data in enumerate(all_data):
+            if not data:  # Skip empty data
+                continue
+            # Calculate statistics
+            q1 = np.percentile(data, 25)
+            q3 = np.percentile(data, 75)
+            # Get whiskers (min and max, excluding outliers)
+            whiskers = box["whiskers"][i * 2:i * 2 + 2]
+            whisker_min = whiskers[0].get_ydata()[1]  # Lower whisker
+            whisker_max = whiskers[1].get_ydata()[1]  # Upper whisker
+
+            # Position for the boxplot (1-based index for plotting)
+            x_pos = i + 1
+
+            # Add Q1 label below the boxplot
+            ax.text(x_pos, whisker_min - 0.05 * (whisker_max - whisker_min), f"Q1: {q1:.4f}",
+                    ha="center", va="top", fontsize=8, color="gray")
+
+            # Add Q3 label above the boxplot
+            ax.text(x_pos, whisker_max + 0.05 * (whisker_max - whisker_min), f"Q3: {q3:.4f}",
+                    ha="center", va="bottom", fontsize=8, color="gray")
+
+        # Set y-axis to start at 0 with padding for Q3 labels
+        y_max = max_whisker * 1.1  # Add 10% padding above the highest whisker
+        ax.set_ylim(0, y_max)  # Start y-axis at 0
+
+        # Customize plot
+        ax.set_title(f"{param} Variation Across Iterations (Seed: {seed}, Reps: {reps})")
+        ax.set_xlabel("Repetition")
+        ax.set_ylabel(f"{param} Values")
+        ax.grid(True, linestyle="--", alpha=0.7)
+
+        # Add a legend
+        legend_labels = [f"Rep {r}" for r in rep_numbers]
+        legend_patches = [plt.Rectangle((0,0),1,1,fc=colors[i]) for i in range(len(colors))]
+        ax.legend(legend_patches, legend_labels, loc="best")
+
+        # Adjust layout and save
+        plt.tight_layout()
+        output_path = f"{output_dir}/{param}_variation_across_iterations.png"
+        plt.savefig(output_path)
+        plt.close()
+        print(f"Boxplot for {param} saved to: {output_path}")
 
 
-def read_all_data(dataset_name: str, seed: int, reps: int) -> Dict[str, Any]:
+def create_summary_table(dataset_name: str, seed: int, reps: int, distance_metric: str, kb_data: List[Dict[str, Any]]):
+    """Creates a LaTeX table summarizing statistics across all knowledge bases."""
+    if not kb_data:
+        print("No knowledge base data available for summary table")
+        return
+
+    # Capitalize distance metric for display
+    distance_metric_display = distance_metric.capitalize()
+
+    # Define attributes to summarize
+    attributes = [
+        "e_b",
+        "e_n",
+        "a_max",
+        "l",
+        "a",
+        "d",
+        "passes",
+        "clusters_number",
+        "silhouette_avg",
+        "davies_bouldin_index",
+        "calinski_harabasz_index",
+        "adjusted_rand_index",
+        "global_error",
+        "execution_time",
+    ]
+
+    # Calculate statistics across all entries
+    stats = {attr: {"min": None, "max": None, "median": None, "std": None} for attr in attributes}
+    for attr in attributes:
+        values = [entry[attr] for entry in kb_data if entry[attr] is not None]
+        if values:
+            stats[attr]["min"] = float(np.min(values))
+            stats[attr]["max"] = float(np.max(values))
+            stats[attr]["median"] = float(np.median(values))
+            stats[attr]["std"] = float(np.std(values, ddof=1))
+
+    # Generate LaTeX table
+    output_dir = f"logs/results/{dataset_name}/seed-{seed}_reps-{reps}"
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = f"{output_dir}/summary_table.tex"
+
+    # Writing LaTeX table
+    with open(output_path, "w") as f:
+        f.write("\\documentclass{article}\n")
+        f.write("\\usepackage{booktabs}\n")
+        f.write("\\usepackage{multirow}\n")
+        f.write("\\usepackage{geometry}\n")
+        f.write("\\geometry{a4paper, margin=1in}\n")
+        f.write("\\begin{document}\n")
+        f.write("\\begin{table}[ht]\n")
+        f.write("\\centering\n")
+        f.write("\\caption{Summary Statistics for Knowledge Base Attributes (Dataset: " + dataset_name + ", Distance Metric: " + distance_metric_display + ")}\n")
+        f.write("\\label{tab:summary_stats}\n")
+        f.write("\\begin{tabular}{l" + "c" * len(attributes) + "}\n")
+        f.write("\\toprule\n")
+        # Header row with dataset name and distance metric (merged)
+        f.write(f"\\multicolumn{{{len(attributes) + 1}}}{{c}}{{Dataset: {dataset_name}, Distance Metric: {distance_metric_display}}} \\\\\n")
+        f.write("\\midrule\n")
+        # Attribute names row
+        f.write(" & " + " & ".join([f"\\textbf{{{attr}}}" for attr in attributes]) + " \\\\\n")
+        f.write("\\midrule\n")
+        # Min row
+        f.write("Min & " + " & ".join([f"{stats[attr]['min']:.4f}" if stats[attr]['min'] is not None else "-" for attr in attributes]) + " \\\\\n")
+        # Max row
+        f.write("Max & " + " & ".join([f"{stats[attr]['max']:.4f}" if stats[attr]['max'] is not None else "-" for attr in attributes]) + " \\\\\n")
+        # Median row
+        f.write("Med & " + " & ".join([f"{stats[attr]['median']:.4f}" if stats[attr]['median'] is not None else "-" for attr in attributes]) + " \\\\\n")
+        # Standard Deviation row
+        f.write("DP & " + " & ".join([f"{stats[attr]['std']:.4f}" if stats[attr]['std'] is not None else "-" for attr in attributes]) + " \\\\\n")
+        f.write("\\bottomrule\n")
+        f.write("\\end{tabular}\n")
+        f.write("\\end{table}\n")
+        f.write("\\end{document}\n")
+
+    print(f"Summary table saved to: {output_path}")
+
+
+def read_all_data(dataset_name: str, seed: int, reps: int, distance_metric: str) -> Dict[str, Any]:
     """Reads all knowledge base CSV and limits JSON files, returning combined data."""
-    kb_files = get_knowledge_base_files(dataset_name, seed, reps)
+    kb_files = get_knowledge_base_files(dataset_name, seed, reps, distance_metric)
     all_kb_data = []
     total_discarded = 0
 
@@ -300,7 +416,7 @@ def read_all_data(dataset_name: str, seed: int, reps: int) -> Dict[str, Any]:
         print(f"Reading knowledge base file: {file_path}")
         file_data, discarded = read_knowledge_base_file(file_path)
         if file_data:
-            rep_number = int(file_path.split("rep")[-1].replace(".csv", ""))
+            rep_number = int(file_path.split("rep")[-1].split(".")[0])
             for entry in file_data:
                 entry["rep"] = rep_number
             all_kb_data.extend(file_data)
@@ -334,10 +450,15 @@ def read_all_data(dataset_name: str, seed: int, reps: int) -> Dict[str, Any]:
     return {"knowledge_base": all_kb_data, "limits": limits_data, "total_discarded": total_discarded, "total_reps": len(kb_files)}
 
 
-def main(dataset_name: str, seed: int, reps: int):
-    """Main function to read, process, and export statistics and boxplots."""
-    print(f"Processing data for dataset: {dataset_name}, seed: {seed}, reps: {reps}")
-    all_data = read_all_data(dataset_name, seed, reps)
+def main(dataset_name: str, seed: int, reps: int, distance_metric: str):
+    """Main function to read, process, and export statistics, boxplots, and summary table."""
+    valid_distances = ["euclidean", "cosine", "cityblock"]
+    if distance_metric.lower() not in valid_distances:
+        print(f"Invalid distance metric: {distance_metric}. Must be one of {valid_distances}")
+        sys.exit(1)
+
+    print(f"Processing data for dataset: {dataset_name}, seed: {seed}, reps: {reps}, distance metric: {distance_metric}")
+    all_data = read_all_data(dataset_name, seed, reps, distance_metric)
 
     kb_data = all_data["knowledge_base"]
     total_reps = all_data["total_reps"]
@@ -348,27 +469,30 @@ def main(dataset_name: str, seed: int, reps: int):
         print(f"Total sets discarded: {total_discarded}")
 
         stats = calculate_statistics(kb_data)
-
         export_statistics_csv(dataset_name, seed, reps, kb_data, total_reps, total_discarded, stats)
+        create_boxplots(dataset_name, seed, reps, kb_data)
+        create_summary_table(dataset_name, seed, reps, distance_metric, kb_data)
     else:
         print("No knowledge base data found.")
 
     limits_data = all_data["limits"]
     if limits_data:
-        create_boxplots(dataset_name, seed, reps, limits_data)
+        print("Limits data found, but not used for iteration-based boxplots or summary table.")
     else:
-        print("No limits data found for boxplots.")
+        print("No limits data found.")
 
 
 if __name__ == "__main__":
     import sys
 
-    if len(sys.argv) != 4:
-        print("Usage: python results.py <dataset_name> <seed> <reps>")
-        print("Example: python results.py iris 1 10")
+    if len(sys.argv) != 5:
+        print("Usage: python results.py <dataset_name> <seed> <reps> <distance>")
+        print("Example: python results.py iris 1 4 euclidean")
+        print("Distance metric must be one of: euclidean, cosine, cityblock")
         sys.exit(1)
 
     dataset_name = sys.argv[1]
     seed = int(sys.argv[2])
     reps = int(sys.argv[3])
-    main(dataset_name, seed, reps)
+    distance_metric = sys.argv[4]
+    main(dataset_name, seed, reps, distance_metric)
