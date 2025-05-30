@@ -31,6 +31,7 @@ def train_tree(dataset_name, rep, reps, seed, knowledge_base_file, tree_log_path
         "calinski_harabasz_index",
         "adjusted_rand_index",
         "rand_index",
+        "dunn_index",
         "global_error",
         "normalized_global_error",
         "execution_time",

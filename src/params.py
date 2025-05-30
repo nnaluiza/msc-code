@@ -25,7 +25,7 @@ def list_limits(file_limit_path):
                 (0.1, 1),  # e_b
                 (0.1, 1),  # e_n
                 (1, 10),  # a_max
-                (1, 50),  # l
+                (10, 50),  # l
                 (0.1, 1.0),  # a
                 (0.1, 1.0),  # d
                 (1, 15),  # passes
@@ -47,7 +47,7 @@ def list_limits(file_limit_path):
                 (0.1, 0.5),  # e_b
                 (0.1, 0.5),  # e_n
                 (1, 10),  # a_max
-                (1, 50),  # l
+                (10, 50),  # l
                 (0.1, 1.0),  # a
                 (0.1, 1.0),  # d
                 (1, 15),  # passes

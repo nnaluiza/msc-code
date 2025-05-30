@@ -102,8 +102,8 @@ def create_knowledge_base(clustered_data, instance, start, end, global_error, nu
         label = item[1]
         labels.append(label)
 
-    # data = np.array(data)
-    # labels = np.array(labels)
+    data = np.array(data)
+    labels = np.array(labels)
 
     silhouette_avg = metrics.silhouette_score(data, labels, metric="euclidean")
     davies_bouldin = metrics.davies_bouldin_score(data, labels)
@@ -144,10 +144,46 @@ def create_knowledge_base(clustered_data, instance, start, end, global_error, nu
         "calinski_harabasz_index": float(format(calinski_harabasz, ".4f")),
         "adjusted_rand_index": float(format(adjusted_rand, ".4f")) if adjusted_rand is not None else None,
         "rand_index": float(format(rand_index, ".4f")) if rand_index is not None else None,
+        "dunn_index": float(format(dunn_index(data, labels), ".4f")),
         "global_error": float(format(global_error, ".4f")),
         "execution_time": float(format(execution_time, ".4f")),
         "class": None,  # Class will be assigned after sorting
     }
+
+
+import numpy as np
+from scipy.spatial.distance import cdist
+
+
+def dunn_index(data, labels, metric="euclidean"):
+    """Implementation of Dunn Index"""
+
+    unique_clusters = np.unique(labels)
+    n_clusters = len(unique_clusters)
+
+    intra_dists = []
+    inter_dists = []
+
+    for i in range(n_clusters):
+        cluster_i = data[labels == unique_clusters[i]]
+        if len(cluster_i) < 2:
+            intra_dists.append(0)
+        else:
+            dists = cdist(cluster_i, cluster_i, metric=metric)
+            intra_dists.append(np.max(dists))
+
+        for j in range(i + 1, n_clusters):
+            cluster_j = data[labels == unique_clusters[j]]
+            dists = cdist(cluster_i, cluster_j, metric=metric)
+            inter_dists.append(np.min(dists))
+
+    max_intra = np.max(intra_dists)
+    min_inter = np.min(inter_dists)
+
+    if max_intra == 0:
+        return 0
+
+    return min_inter / max_intra
 
 
 def classify_knowledge_base(entries, rep, reps, normalize=True):
