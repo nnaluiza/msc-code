@@ -16,14 +16,14 @@ def train_tree(dataset_name, distance_metric, rep, reps, seed, knowledge_base_fi
     df = pd.read_csv(knowledge_base_file, delimiter=",", skiprows=4)
     columns_to_exclude = [
         "clusters_number",
-        "silhouette_avg",
-        "davies_bouldin_index",
-        "calinski_harabasz_index",
+        # "silhouette_avg",
+        # "davies_bouldin_index",
+        # "calinski_harabasz_index",
         "adjusted_rand_index",
-        "rand_index",
+        # "rand_index",
         "dunn_index",
         "global_error",
-        "normalized_global_error",
+        # "normalized_global_error",
         "execution_time",
         "class",
         "rep_number",
@@ -36,7 +36,7 @@ def train_tree(dataset_name, distance_metric, rep, reps, seed, knowledge_base_fi
         "min_samples_split": [5, 10],
         "max_leaf_nodes": [30, 50, 100],
     }
-    clf = GridSearchCV(DecisionTreeClassifier(random_state=seed, criterion="gini"), param_grid, cv=5, scoring="f1", n_jobs=-1)
+    clf = GridSearchCV(DecisionTreeClassifier(random_state=seed, criterion="entropy"), param_grid, cv=5, scoring="f1", n_jobs=-1)
     clf.fit(X, y)
     best_clf = clf.best_estimator_
     print(f"Best hyperparameters: {clf.best_params_}")

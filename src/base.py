@@ -5,6 +5,7 @@ import random
 import numpy as np
 import pandas as pd
 from scipy.io import arff
+from scipy.spatial.distance import cdist
 from sklearn import metrics
 from sklearn.datasets import load_iris, make_blobs, make_circles, make_moons
 from sklearn.preprocessing import StandardScaler
@@ -109,6 +110,10 @@ def create_knowledge_base(clustered_data, instance, start, end, global_error, nu
     davies_bouldin = metrics.davies_bouldin_score(data, labels)
     calinski_harabasz = metrics.calinski_harabasz_score(data, labels)
 
+    # print(true_labels)
+    # print(50 * '-')
+    # print(labels)
+
     adjusted_rand = None
     rand_index = None
     if true_labels is not None:
@@ -139,11 +144,11 @@ def create_knowledge_base(clustered_data, instance, start, end, global_error, nu
         "d": instance["d"],
         "passes": instance["passes"],
         "clusters_number": int(num_clusters),
-        "silhouette_avg": float(format(silhouette_avg, ".4f")),
-        "davies_bouldin_index": float(format(davies_bouldin, ".4f")),
-        "calinski_harabasz_index": float(format(calinski_harabasz, ".4f")),
+        # "silhouette_avg": float(format(silhouette_avg, ".4f")),
+        # "davies_bouldin_index": float(format(davies_bouldin, ".4f")),
+        # "calinski_harabasz_index": float(format(calinski_harabasz, ".4f")),
         "adjusted_rand_index": float(format(adjusted_rand, ".4f")) if adjusted_rand is not None else None,
-        "rand_index": float(format(rand_index, ".4f")) if rand_index is not None else None,
+        # "rand_index": float(format(rand_index, ".4f")) if rand_index is not None else None,
         "dunn_index": float(format(dunn_index(data, labels), ".4f")),
         "global_error": float(format(global_error, ".4f")),
         "execution_time": float(format(execution_time, ".4f")),
@@ -151,51 +156,50 @@ def create_knowledge_base(clustered_data, instance, start, end, global_error, nu
     }
 
 
-import numpy as np
-from scipy.spatial.distance import cdist
-
-
 def dunn_index(data, labels, metric="euclidean"):
-    """Implementation of Dunn Index"""
+    """Calculates the Dunn Index for clustering"""
 
     unique_clusters = np.unique(labels)
     n_clusters = len(unique_clusters)
 
+    if n_clusters < 2:
+        return 0.0
+
     intra_dists = []
     inter_dists = []
 
-    for i in range(n_clusters):
-        cluster_i = data[labels == unique_clusters[i]]
+    for i in unique_clusters:
+        cluster_i = data[labels == i]
         if len(cluster_i) < 2:
-            intra_dists.append(0)
+            intra_dists.append(0.0)
         else:
             dists = cdist(cluster_i, cluster_i, metric=metric)
             intra_dists.append(np.max(dists))
 
-        for j in range(i + 1, n_clusters):
-            cluster_j = data[labels == unique_clusters[j]]
-            dists = cdist(cluster_i, cluster_j, metric=metric)
-            inter_dists.append(np.min(dists))
+        for j in unique_clusters:
+            if j > i:
+                cluster_j = data[labels == j]
+                dists = cdist(cluster_i, cluster_j, metric=metric)
+                inter_dists.append(np.min(dists))
 
     max_intra = np.max(intra_dists)
     min_inter = np.min(inter_dists)
 
     if max_intra == 0:
-        return 0
+        return 0.0
 
     return min_inter / max_intra
 
 
 def classify_knowledge_base(entries, rep, reps, normalize=True):
-    """Processes knowledge base entries by sorting them by global error, and classifies entries with threshold based on percentile.
-    For rep=1, 80% of solutions are classified as good (class=1). Threshold decreases by 5% per rep until reaching 10%."""
-
+    """Processes knowledge base entries by sorting them by a composite score based on global_error, dunn_index, and execution_time.
+    Classifies entries with threshold based on percentile. For rep=1, 80% of solutions are classified as good (class=1).
+    Threshold decreases by 5% per rep until reaching 10%. Normalized metrics are used internally but not stored."""
     if not entries:
         return None
 
     sorted_entries = sorted(entries, key=lambda x: x["global_error"])
-    global_errors = [entry["global_error"] for entry in sorted_entries]
-
+    global_errors = [entry["global_error"] for entry in entries]
     if normalize:
         min_error = min(global_errors)
         max_error = max(global_errors)
@@ -203,23 +207,37 @@ def classify_knowledge_base(entries, rep, reps, normalize=True):
             normalized_errors = [(error - min_error) / (max_error - min_error) for error in global_errors]
         else:
             normalized_errors = [0.0] * len(global_errors)
-        for entry, norm_error in zip(sorted_entries, normalized_errors):
-            entry["normalized_global_error"] = float(format(norm_error, ".4f"))
-        error_to_compare = [entry["normalized_global_error"] for entry in sorted_entries]
     else:
-        for entry in sorted_entries:
-            entry["normalized_global_error"] = None
-        error_to_compare = global_errors
+        normalized_errors = global_errors
+
+    dunn_indices = [entry["dunn_index"] for entry in entries]
+    min_dunn = min(dunn_indices)
+    max_dunn = max(dunn_indices)
+    if max_dunn != min_dunn:
+        normalized_dunn = [(max_dunn - di) / (max_dunn - min_dunn) for di in dunn_indices]
+    else:
+        normalized_dunn = [0.0] * len(dunn_indices)
+
+    execution_times = [entry["execution_time"] for entry in entries]
+    min_time = min(execution_times)
+    max_time = max(execution_times)
+    if max_time != min_time:
+        normalized_times = [(et - min_time) / (max_time - min_time) for et in execution_times]
+    else:
+        normalized_times = [0.0] * len(execution_times)
+
+    composite_scores = [
+        normalized_errors[i] * 0.5 + normalized_dunn[i] * 0.3 + normalized_times[i] * 0.2 for i in range(len(entries))
+    ]
 
     initial_percentile = 80
     min_percentile = 10
     decrement = 5
     current_percentile = max(min_percentile, initial_percentile - (rep - 1) * decrement)
-    threshold = np.percentile(error_to_compare, current_percentile)
+    threshold = np.percentile(composite_scores, current_percentile)
 
-    for entry in sorted_entries:
-        compare_value = entry["normalized_global_error"] if normalize else entry["global_error"]
-        entry["class"] = 1 if compare_value <= threshold else 0
+    for entry, score in zip(sorted_entries, composite_scores):
+        entry["class"] = 1 if score <= threshold else 0
 
     return sorted_entries
 

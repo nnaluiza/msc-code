@@ -278,7 +278,7 @@ def create_boxplots(dataset_name: str, seed: int, reps: int, kb_data: List[Dict[
         max_whisker = 0
         for i in range(len(all_data)):
             if all_data[i]:  # Skip empty data
-                whiskers = box["whiskers"][i * 2:i * 2 + 2]
+                whiskers = box["whiskers"][i * 2 : i * 2 + 2]
                 whisker_max = whiskers[1].get_ydata()[1]  # Upper whisker
                 max_whisker = max(max_whisker, whisker_max)
 
@@ -290,7 +290,7 @@ def create_boxplots(dataset_name: str, seed: int, reps: int, kb_data: List[Dict[
             q1 = np.percentile(data, 25)
             q3 = np.percentile(data, 75)
             # Get whiskers (min and max, excluding outliers)
-            whiskers = box["whiskers"][i * 2:i * 2 + 2]
+            whiskers = box["whiskers"][i * 2 : i * 2 + 2]
             whisker_min = whiskers[0].get_ydata()[1]  # Lower whisker
             whisker_max = whiskers[1].get_ydata()[1]  # Upper whisker
 
@@ -298,12 +298,26 @@ def create_boxplots(dataset_name: str, seed: int, reps: int, kb_data: List[Dict[
             x_pos = i + 1
 
             # Add Q1 label below the boxplot
-            ax.text(x_pos, whisker_min - 0.05 * (whisker_max - whisker_min), f"Q1: {q1:.4f}",
-                    ha="center", va="top", fontsize=8, color="gray")
+            ax.text(
+                x_pos,
+                whisker_min - 0.05 * (whisker_max - whisker_min),
+                f"Q1: {q1:.4f}",
+                ha="center",
+                va="top",
+                fontsize=8,
+                color="gray",
+            )
 
             # Add Q3 label above the boxplot
-            ax.text(x_pos, whisker_max + 0.05 * (whisker_max - whisker_min), f"Q3: {q3:.4f}",
-                    ha="center", va="bottom", fontsize=8, color="gray")
+            ax.text(
+                x_pos,
+                whisker_max + 0.05 * (whisker_max - whisker_min),
+                f"Q3: {q3:.4f}",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+                color="gray",
+            )
 
         # Set y-axis to start at 0 with padding for Q3 labels
         y_max = max_whisker * 1.1  # Add 10% padding above the highest whisker
@@ -317,7 +331,7 @@ def create_boxplots(dataset_name: str, seed: int, reps: int, kb_data: List[Dict[
 
         # Add a legend
         legend_labels = [f"Rep {r}" for r in rep_numbers]
-        legend_patches = [plt.Rectangle((0,0),1,1,fc=colors[i]) for i in range(len(colors))]
+        legend_patches = [plt.Rectangle((0, 0), 1, 1, fc=colors[i]) for i in range(len(colors))]
         ax.legend(legend_patches, legend_labels, loc="best")
 
         # Adjust layout and save
@@ -380,24 +394,48 @@ def create_summary_table(dataset_name: str, seed: int, reps: int, distance_metri
         f.write("\\begin{document}\n")
         f.write("\\begin{table}[ht]\n")
         f.write("\\centering\n")
-        f.write("\\caption{Summary Statistics for Knowledge Base Attributes (Dataset: " + dataset_name + ", Distance Metric: " + distance_metric_display + ")}\n")
+        f.write(
+            "\\caption{Summary Statistics for Knowledge Base Attributes (Dataset: "
+            + dataset_name
+            + ", Distance Metric: "
+            + distance_metric_display
+            + ")}\n"
+        )
         f.write("\\label{tab:summary_stats}\n")
         f.write("\\begin{tabular}{l" + "c" * len(attributes) + "}\n")
         f.write("\\toprule\n")
         # Header row with dataset name and distance metric (merged)
-        f.write(f"\\multicolumn{{{len(attributes) + 1}}}{{c}}{{Dataset: {dataset_name}, Distance Metric: {distance_metric_display}}} \\\\\n")
+        f.write(
+            f"\\multicolumn{{{len(attributes) + 1}}}{{c}}{{Dataset: {dataset_name}, Distance Metric: {distance_metric_display}}} \\\\\n"
+        )
         f.write("\\midrule\n")
         # Attribute names row
         f.write(" & " + " & ".join([f"\\textbf{{{attr}}}" for attr in attributes]) + " \\\\\n")
         f.write("\\midrule\n")
         # Min row
-        f.write("Min & " + " & ".join([f"{stats[attr]['min']:.4f}" if stats[attr]['min'] is not None else "-" for attr in attributes]) + " \\\\\n")
+        f.write(
+            "Min & "
+            + " & ".join([f"{stats[attr]['min']:.4f}" if stats[attr]["min"] is not None else "-" for attr in attributes])
+            + " \\\\\n"
+        )
         # Max row
-        f.write("Max & " + " & ".join([f"{stats[attr]['max']:.4f}" if stats[attr]['max'] is not None else "-" for attr in attributes]) + " \\\\\n")
+        f.write(
+            "Max & "
+            + " & ".join([f"{stats[attr]['max']:.4f}" if stats[attr]["max"] is not None else "-" for attr in attributes])
+            + " \\\\\n"
+        )
         # Median row
-        f.write("Med & " + " & ".join([f"{stats[attr]['median']:.4f}" if stats[attr]['median'] is not None else "-" for attr in attributes]) + " \\\\\n")
+        f.write(
+            "Med & "
+            + " & ".join([f"{stats[attr]['median']:.4f}" if stats[attr]["median"] is not None else "-" for attr in attributes])
+            + " \\\\\n"
+        )
         # Standard Deviation row
-        f.write("DP & " + " & ".join([f"{stats[attr]['std']:.4f}" if stats[attr]['std'] is not None else "-" for attr in attributes]) + " \\\\\n")
+        f.write(
+            "DP & "
+            + " & ".join([f"{stats[attr]['std']:.4f}" if stats[attr]["std"] is not None else "-" for attr in attributes])
+            + " \\\\\n"
+        )
         f.write("\\bottomrule\n")
         f.write("\\end{tabular}\n")
         f.write("\\end{table}\n")
