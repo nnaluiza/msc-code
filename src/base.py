@@ -206,10 +206,41 @@ def dunn_index(data, labels, metric="euclidean"):
     return min_inter / max_intra
 
 
+def compactness_index(data, labels):
+    """Computes the average intra-cluster distance (compactness). Lower is better."""
+    unique_labels = np.unique(labels)
+    compactness = 0.0
+    count = 0
+    for label in unique_labels:
+        cluster_points = data[labels == label]
+        if len(cluster_points) > 1:
+            dists = cdist(cluster_points, cluster_points)
+            # sum of upper triangle distances (excluding diagonal)
+            sum_dists = np.sum(np.triu(dists, 1))
+            num_pairs = (len(cluster_points) * (len(cluster_points) - 1)) / 2
+            compactness += sum_dists / num_pairs
+            count += 1
+    if count == 0:
+        return 0.0
+    return compactness / count
+
+
+def separation_index(data, labels):
+    """Computes the minimum distance between cluster centroids (separation). Higher is better."""
+    unique_labels = np.unique(labels)
+    if len(unique_labels) < 2:
+        return 0.0
+    centroids = np.array([data[labels == label].mean(axis=0) for label in unique_labels])
+    dists = cdist(centroids, centroids)
+    # get the minimum nonzero distance
+    min_dist = np.min(dists[np.nonzero(dists)])
+    return min_dist
+
+
 def classify_knowledge_base(entries, rep, reps, normalize=True):
-    """Processes knowledge base entries by sorting them by a composite score based on global_error, dunn_index, and execution_time.
-    Classifies entries with threshold based on percentile. For rep=1, 80% of solutions are classified as good (class=1).
-    Threshold decreases by 5% per rep until reaching 10%. Normalized metrics are used internally but not stored."""
+    """Processes knowledge base entries by sorting them by a composite score based on global_error, dunn_index, compactness, separation, and execution_time.
+    Classifies entries with threshold based on the mean of normalized scores, but guarantees at least the desired percentile of good solutions.
+    """
     if not entries:
         return None
 
@@ -233,6 +264,22 @@ def classify_knowledge_base(entries, rep, reps, normalize=True):
     else:
         normalized_dunn = [0.0] * len(dunn_indices)
 
+    compactness_indices = [entry.get("compactness_index", 0.0) for entry in entries]
+    min_comp = min(compactness_indices)
+    max_comp = max(compactness_indices)
+    if max_comp != min_comp:
+        normalized_comp = [(max_comp - ci) / (max_comp - min_comp) for ci in compactness_indices]
+    else:
+        normalized_comp = [0.0] * len(compactness_indices)
+
+    separation_indices = [entry.get("separation_index", 0.0) for entry in entries]
+    min_sep = min(separation_indices)
+    max_sep = max(separation_indices)
+    if max_sep != min_sep:
+        normalized_sep = [(si - min_sep) / (max_sep - min_sep) for si in separation_indices]
+    else:
+        normalized_sep = [0.0] * len(separation_indices)
+
     execution_times = [entry["execution_time"] for entry in entries]
     min_time = min(execution_times)
     max_time = max(execution_times)
@@ -241,67 +288,38 @@ def classify_knowledge_base(entries, rep, reps, normalize=True):
     else:
         normalized_times = [0.0] * len(execution_times)
 
-    # Add connectivity index to the composite score (optional, here as 0.2 weight)
-    connectivity_indices = [entry.get("connectivity_index", 0.0) for entry in entries]
-    min_conn = min(connectivity_indices)
-    max_conn = max(connectivity_indices)
-    if max_conn != min_conn:
-        normalized_conn = [(ci - min_conn) / (max_conn - min_conn) for ci in connectivity_indices]
-    else:
-        normalized_conn = [0.0] * len(connectivity_indices)
-
+    # Composite score: weights can be tuned as needed
     composite_scores = [
-        normalized_errors[i] * 0.4 + normalized_dunn[i] * 0.25 + normalized_times[i] * 0.15 + normalized_conn[i] * 0.2
+        normalized_errors[i] * 0.35
+        + normalized_dunn[i] * 0.20
+        + normalized_comp[i] * 0.15
+        + normalized_sep[i] * 0.15
+        + normalized_times[i] * 0.15
         for i in range(len(entries))
     ]
 
-    # Normalize Dunn index and global error
-    dunn_indices = np.array(dunn_indices)
-    global_errors = np.array(global_errors)
-    norm_dunn = (dunn_indices - np.min(dunn_indices)) / (np.max(dunn_indices) - np.min(dunn_indices) + 1e-8)
-    norm_error = (global_errors - np.min(global_errors)) / (np.max(global_errors) - np.min(global_errors) + 1e-8)
+    # Normalize composite scores for thresholding
+    min_score = min(composite_scores)
+    max_score = max(composite_scores)
+    if max_score != min_score:
+        normalized_scores = [(s - min_score) / (max_score - min_score) for s in composite_scores]
+    else:
+        normalized_scores = [0.0] * len(composite_scores)
 
-    # Dynamic reward/penalty system based on Dunn index mean and std
-    mean_dunn = np.mean(dunn_indices)
-    std_dunn = np.std(dunn_indices)
-    dunn_reward = 0.1  # Subtract from score (reward)
-    dunn_penalty = 0.15  # Add to score (penalty)
+    # Use mean of normalized scores as threshold
+    mean_threshold = np.mean(normalized_scores)
 
-    # Use MAD (Median Absolute Deviation) for reward/penalty thresholds
-    def mad(arr):
-        med = np.median(arr)
-        return np.median(np.abs(arr - med))
-
-    dunn_median = np.median(norm_dunn)
-    dunn_mad = mad(norm_dunn)
-    error_median = np.median(norm_error)
-    error_mad = mad(norm_error)
-    error_reward = 0.1
-    error_penalty = 0.15
-
-    adjusted_scores = []
-    for i, score in enumerate(composite_scores):
-        dunn = norm_dunn[i]
-        error = norm_error[i]
-        adjusted_score = score
-        # Reward/penalize based on MAD
-        if dunn > dunn_median + dunn_mad:
-            adjusted_score -= dunn_reward
-        elif dunn < dunn_median - dunn_mad:
-            adjusted_score += dunn_penalty
-        if error < error_median - error_mad:
-            adjusted_score -= error_reward
-        elif error > error_median + error_mad:
-            adjusted_score += error_penalty
-        adjusted_scores.append(adjusted_score)
-
-    initial_percentile = 80
+    # Guarantee at least the desired percentile of good solutions
+    initial_percentile = 70
     min_percentile = 10
     decrement = 10
     current_percentile = max(min_percentile, initial_percentile - (rep - 1) * decrement)
-    threshold = np.percentile(adjusted_scores, current_percentile)
+    percentile_threshold = np.percentile(normalized_scores, current_percentile)
 
-    for entry, score in zip(sorted_entries, adjusted_scores):
+    # Use the lower (stricter) threshold to guarantee enough good solutions
+    threshold = min(mean_threshold, percentile_threshold)
+
+    for entry, score in zip(sorted_entries, normalized_scores):
         entry["objective_function"] = float(format(score, ".4f"))
         entry["class"] = 1 if score <= threshold else 0
 

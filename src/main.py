@@ -48,6 +48,7 @@ def run_model(seed, size, reps, distance_metric, dataset_name, m):
 def train_network(seed, size, rep, reps, distance_metric, dataset_name, m):
     """Trains the network for a single repetition."""
     rep_seed = seed + rep
+    # rep_seed = seed
 
     print("Generating working memory...")
     start_time_WM = time.time()

@@ -3,7 +3,7 @@
 # python3 script.py 1 150 10 euclidean iris
 # python3 script.py 1 100 10 cosine iris
 # python3 script.py 1 100 10 cityblock iris
-python3 script.py 1 30 10 euclidean ds2c2sc13.arff
+python3 script.py 1 30 12 euclidean ds2c2sc13.arff
 # python3 script.py 1 50 10 cosine 2sp2glob.arff
 # python3 script.py 1 50 10 cityblock 2sp2glob.arff
 # python3 script.py 1 50 10 euclidean complex8.arff

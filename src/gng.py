@@ -117,7 +117,12 @@ class GrowingNeuralGas:
         max_vector_value = 1e6
         max_error_value = 1e10
 
+        max_nodes = len(self.data) * 2
+
         for p in range(passes):
+            if self.network is not None and self.network.number_of_nodes() >= max_nodes:
+                print(f"Stopping: reached max_nodes ({max_nodes}) in the network.")
+                break
             """Initialize the start time of the current iteration"""
             start = time.time()
 
@@ -357,11 +362,28 @@ class GrowingNeuralGas:
         plt.close()
 
     def compute_global_error(self):
-        """Calculates the global error of the algorithm"""
-        global_error = 0
+        """Calculates clustering error as normalized quantization error with connectivity penalty"""
+        quantization_error = 0
         for observation in self.data:
             nearest_units = self.find_nearest_units(observation)
             s_1 = nearest_units[0]
             dist = self.compute_distance(observation, self.network.nodes[s_1]["vector"])
-            global_error += dist**2
-        return global_error
+            quantization_error += dist**2
+
+        data_variance = np.sum(np.var(self.data, axis=0)) if np.sum(np.var(self.data, axis=0)) > 0 else 1.0
+        normalized_quantization_error = quantization_error / data_variance
+
+        local_errors = [self.network.nodes[u]["error"] for u in self.network.nodes()]
+        if len(local_errors) > 1:
+            error_std = np.std(local_errors)
+            error_range = max(local_errors) - min(local_errors)
+            k_opt = max(2, min(int(error_range / error_std) if error_std > 0 else 2, int(np.sqrt(len(self.data)))))
+        else:
+            k_opt = 2
+
+        k = self.number_of_clusters()
+        connectivity_penalty = abs(k - k_opt) / max(k, k_opt) if max(k, k_opt) > 0 else 1.0
+
+        lambda_weight = 0.5
+        clustering_error = normalized_quantization_error + lambda_weight * connectivity_penalty
+        return clustering_error

@@ -30,7 +30,7 @@ def train_tree(dataset_name, distance_metric, rep, reps, seed, knowledge_base_fi
     X = df.drop(columns_to_exclude, axis=1)
     y = df["class"]
 
-    clf = DecisionTreeClassifier(random_state=seed, criterion="gini", max_depth=10, min_samples_split=3, max_leaf_nodes=50)
+    clf = DecisionTreeClassifier(random_state=seed, criterion="entropy", max_depth=10, min_samples_split=3, max_leaf_nodes=50)
     clf.fit(X, y)
 
     names = list(X.columns)

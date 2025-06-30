@@ -22,12 +22,12 @@ def list_limits(file_limit_path, distance):
                 limits = json.load(file)
         except FileNotFoundError:
             limits = [
-                (0.1, 1),  # e_b
-                (0.1, 1),  # e_n
-                (10, 50),  # a_max
+                (0.1, 0.5),  # e_b
+                (0.1, 0.5),  # e_n
+                (1, 20),  # a_max
                 (50, 200),  # l
-                (0.1, 1),  # a
-                (0.1, 1),  # d
+                (0.1, 1.0),  # a
+                (0.1, 1.0),  # d
                 (1, 15),  # passes
             ]
             with open(file_limit_path, "w") as file:
@@ -44,8 +44,8 @@ def list_limits(file_limit_path, distance):
                 json.dump(limits, target, indent=4)
         except FileNotFoundError:
             limits = [
-                (0.1, 1),  # e_b
-                (0.1, 1),  # e_n
+                (0.1, 0.5),  # e_b
+                (0.1, 0.5),  # e_n
                 (10, 50),  # a_max
                 (50, 200),  # l
                 (0.1, 1),  # a
