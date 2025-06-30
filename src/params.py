@@ -24,7 +24,7 @@ def list_limits(file_limit_path, distance):
             limits = [
                 (0.1, 0.5),  # e_b
                 (0.1, 0.5),  # e_n
-                (1, 20),  # a_max
+                (10, 20),  # a_max
                 (50, 200),  # l
                 (0.1, 1.0),  # a
                 (0.1, 1.0),  # d
@@ -46,10 +46,10 @@ def list_limits(file_limit_path, distance):
             limits = [
                 (0.1, 0.5),  # e_b
                 (0.1, 0.5),  # e_n
-                (10, 50),  # a_max
+                (10, 20),  # a_max
                 (50, 200),  # l
-                (0.1, 1),  # a
-                (0.1, 1),  # d
+                (0.1, 1.0),  # a
+                (0.1, 1.0),  # d
                 (1, 15),  # passes
             ]
             with open(file_limit_path, "w") as file:

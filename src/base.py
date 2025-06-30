@@ -66,33 +66,32 @@ def random_value_generator(limit, is_discrete=False):
         return float(format(random_value, ".4f"))
 
 
-def create_working_memory(seed, size, file_limit_path, distance):
-    """Generates size random parameter sets using Latin Hypercube Sampling."""
-    limits = list_limits(file_limit_path, distance)
+def create_working_memory(seed, size, file_limit_path, distance_metric):
+    """Generates size random parameter sets and stores them in the working_memory list.
+    Each parameter set is a dictionary that maps parameter names to their values."""
+    limits = list_limits(file_limit_path, distance_metric)
     params = list_params()
+
     if len(limits) != len(params):
         raise ValueError(
             f"Number of limits ({len(limits)}) does not match number of parameters ({len(params)}). "
             f"Parameters: {params}, Limits: {limits}"
         )
+
     discrete_params = ["a_max", "l", "passes"]
-    sampler = qmc.LatinHypercube(d=len(limits), seed=seed)
-    sample = sampler.random(n=size)
     working_memory = []
-    for i in range(size):
+
+    for i in range(int(size)):
         random_values = []
         for j, limit in enumerate(limits):
-            lower_limit, upper_limit = limit
             param = params[j]
             is_discrete = param in discrete_params
-            scaled_value = sample[i][j] * (upper_limit - lower_limit) + lower_limit
-            if is_discrete:
-                random_value = int(round(scaled_value))
-            else:
-                random_value = float(format(scaled_value, ".4f"))
+            random_value = random_value_generator(limit, is_discrete=is_discrete)
             random_values.append(random_value)
+
         dict_value = dict(zip(params, random_values))
         working_memory.append(dict_value)
+
     return working_memory
 
 
@@ -237,92 +236,58 @@ def separation_index(data, labels):
     return min_dist
 
 
-def classify_knowledge_base(entries, rep, reps, normalize=True):
-    """Processes knowledge base entries by sorting them by a composite score based on global_error, dunn_index, compactness, separation, and execution_time.
-    Classifies entries with threshold based on the mean of normalized scores, but guarantees at least the desired percentile of good solutions.
+def classify_knowledge_base(entries, rep, reps, weights=None):
+    """
+    Classifies and ranks knowledge base entries using a weighted sum of normalized metrics.
+    Metrics:
+        - Dunn index (higher is better)
+        - Separation (higher is better)
+        - Global error (lower is better)
+        - Compactness (lower is better)
+    The objective function is a weighted sum of these normalized values.
+    Entries are ranked by objective function (higher is better).
     """
     if not entries:
         return None
 
-    sorted_entries = sorted(entries, key=lambda x: x["global_error"])
-    global_errors = [entry["global_error"] for entry in entries]
-    if normalize:
-        min_error = min(global_errors)
-        max_error = max(global_errors)
-        if max_error != min_error:
-            normalized_errors = [(error - min_error) / (max_error - min_error) for error in global_errors]
+    # Default weights if not provided
+    if weights is None:
+        weights = {"dunn": 0.25, "separation": 0.20, "error": 0.35, "compactness": 0.20}
+
+    # Extract metrics
+    dunn_indices = np.array([entry.get("dunn_index", 0.0) for entry in entries], dtype=np.float64)
+    global_errors = np.array([entry.get("global_error", 0.0) for entry in entries], dtype=np.float64)
+    separation_indices = np.array([entry.get("separation_index", 0.0) for entry in entries], dtype=np.float64)
+    compactness_indices = np.array([entry.get("compactness_index", 0.0) for entry in entries], dtype=np.float64)
+
+    # Normalization helper
+    def normalize(arr):
+        min_v, max_v = np.min(arr), np.max(arr)
+        if max_v != min_v:
+            return (arr - min_v) / (max_v - min_v)
         else:
-            normalized_errors = [0.0] * len(global_errors)
-    else:
-        normalized_errors = global_errors
+            return np.zeros_like(arr)
 
-    dunn_indices = [entry["dunn_index"] for entry in entries]
-    min_dunn = min(dunn_indices)
-    max_dunn = max(dunn_indices)
-    if max_dunn != min_dunn:
-        normalized_dunn = [(max_dunn - di) / (max_dunn - min_dunn) for di in dunn_indices]
-    else:
-        normalized_dunn = [0.0] * len(dunn_indices)
+    norm_dunn = normalize(dunn_indices)
+    norm_error = normalize(global_errors)
+    norm_separation = normalize(separation_indices)
+    norm_compactness = normalize(compactness_indices)
 
-    compactness_indices = [entry.get("compactness_index", 0.0) for entry in entries]
-    min_comp = min(compactness_indices)
-    max_comp = max(compactness_indices)
-    if max_comp != min_comp:
-        normalized_comp = [(max_comp - ci) / (max_comp - min_comp) for ci in compactness_indices]
-    else:
-        normalized_comp = [0.0] * len(compactness_indices)
+    # Compute objective function (higher is better)
+    objectives = (
+        weights["dunn"] * norm_dunn
+        + weights["separation"] * norm_separation
+        + weights["error"] * (1 - norm_error)
+        + weights["compactness"] * (1 - norm_compactness)
+    )
 
-    separation_indices = [entry.get("separation_index", 0.0) for entry in entries]
-    min_sep = min(separation_indices)
-    max_sep = max(separation_indices)
-    if max_sep != min_sep:
-        normalized_sep = [(si - min_sep) / (max_sep - min_sep) for si in separation_indices]
-    else:
-        normalized_sep = [0.0] * len(separation_indices)
+    for i, entry in enumerate(entries):
+        entry["objective_function"] = float(format(objectives[i], ".4f"))
+        # Optionally, set class 1 for top 30% (or any threshold)
+        entry["class"] = 1 if objectives[i] >= np.percentile(objectives, 70) else 0
 
-    execution_times = [entry["execution_time"] for entry in entries]
-    min_time = min(execution_times)
-    max_time = max(execution_times)
-    if max_time != min_time:
-        normalized_times = [(et - min_time) / (max_time - min_time) for et in execution_times]
-    else:
-        normalized_times = [0.0] * len(execution_times)
-
-    # Composite score: weights can be tuned as needed
-    composite_scores = [
-        normalized_errors[i] * 0.35
-        + normalized_dunn[i] * 0.20
-        + normalized_comp[i] * 0.15
-        + normalized_sep[i] * 0.15
-        + normalized_times[i] * 0.15
-        for i in range(len(entries))
-    ]
-
-    # Normalize composite scores for thresholding
-    min_score = min(composite_scores)
-    max_score = max(composite_scores)
-    if max_score != min_score:
-        normalized_scores = [(s - min_score) / (max_score - min_score) for s in composite_scores]
-    else:
-        normalized_scores = [0.0] * len(composite_scores)
-
-    # Use mean of normalized scores as threshold
-    mean_threshold = np.mean(normalized_scores)
-
-    # Guarantee at least the desired percentile of good solutions
-    initial_percentile = 70
-    min_percentile = 10
-    decrement = 10
-    current_percentile = max(min_percentile, initial_percentile - (rep - 1) * decrement)
-    percentile_threshold = np.percentile(normalized_scores, current_percentile)
-
-    # Use the lower (stricter) threshold to guarantee enough good solutions
-    threshold = min(mean_threshold, percentile_threshold)
-
-    for entry, score in zip(sorted_entries, normalized_scores):
-        entry["objective_function"] = float(format(score, ".4f"))
-        entry["class"] = 1 if score <= threshold else 0
-
+    # Sort entries by objective function (descending)
+    sorted_entries = [x for _, x in sorted(zip(objectives, entries), key=lambda pair: pair[0], reverse=True)]
     return sorted_entries
 
 
