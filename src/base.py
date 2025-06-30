@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from scipy.io import arff
 from scipy.spatial.distance import cdist
+from scipy.stats import qmc
 from sklearn import metrics
 from sklearn.datasets import load_iris, make_blobs, make_circles, make_moons
 from sklearn.neighbors import NearestNeighbors
@@ -65,53 +66,34 @@ def random_value_generator(limit, is_discrete=False):
         return float(format(random_value, ".4f"))
 
 
-def create_working_memory(seed, size, file_limit_path):
-    """Generates size random parameter sets and stores them in the working_memory list.
-    Each parameter set is a dictionary that maps parameter names to their values."""
-    limits = list_limits(file_limit_path)
+def create_working_memory(seed, size, file_limit_path, distance):
+    """Generates size random parameter sets using Latin Hypercube Sampling."""
+    limits = list_limits(file_limit_path, distance)
     params = list_params()
-
     if len(limits) != len(params):
         raise ValueError(
             f"Number of limits ({len(limits)}) does not match number of parameters ({len(params)}). "
             f"Parameters: {params}, Limits: {limits}"
         )
-
     discrete_params = ["a_max", "l", "passes"]
+    sampler = qmc.LatinHypercube(d=len(limits), seed=seed)
+    sample = sampler.random(n=size)
     working_memory = []
-
-    # Calculate max_nodes as number of samples * 2
-    data, _ = get_data_training("iris")  # Using "iris" just to get the sample size, it will be ignored
-    max_nodes = data.shape[0] * 2
-
-    for i in range(int(size)):
+    for i in range(size):
         random_values = []
         for j, limit in enumerate(limits):
+            lower_limit, upper_limit = limit
             param = params[j]
             is_discrete = param in discrete_params
-            random_value = random_value_generator(limit, is_discrete=is_discrete)
+            scaled_value = sample[i][j] * (upper_limit - lower_limit) + lower_limit
+            if is_discrete:
+                random_value = int(round(scaled_value))
+            else:
+                random_value = float(format(scaled_value, ".4f"))
             random_values.append(random_value)
-        # Add max_nodes as the last parameter
         dict_value = dict(zip(params, random_values))
-        dict_value["max_nodes"] = max_nodes
         working_memory.append(dict_value)
-
     return working_memory
-
-
-def connectivity_index(data, labels, k=10):
-    """Computes the Connectivity Index for clustering validation.
-    Lower values indicate better clustering (neighbors are in the same cluster)."""
-    n_samples = data.shape[0]
-    connectivity = 0.0
-    nbrs = NearestNeighbors(n_neighbors=min(k + 1, n_samples)).fit(data)
-    # For each point, get its k nearest neighbors (excluding itself)
-    distances, indices = nbrs.kneighbors(data)
-    for i in range(n_samples):
-        for j in range(1, min(k + 1, n_samples)):  # skip the first neighbor (itself)
-            if labels[i] != labels[indices[i, j]]:
-                connectivity += 1.0 / j
-    return connectivity
 
 
 def create_knowledge_base(clustered_data, instance, start, end, global_error, num_clusters, rep_number, true_labels=None):
@@ -130,7 +112,6 @@ def create_knowledge_base(clustered_data, instance, start, end, global_error, nu
     silhouette_avg = metrics.silhouette_score(data, labels, metric="euclidean")
     davies_bouldin = metrics.davies_bouldin_score(data, labels)
     calinski_harabasz = metrics.calinski_harabasz_score(data, labels)
-    conn_index = connectivity_index(data, labels, k=10)
 
     adjusted_rand = None
     rand_index = None
@@ -161,7 +142,6 @@ def create_knowledge_base(clustered_data, instance, start, end, global_error, nu
         "a": instance["a"],
         "d": instance["d"],
         "passes": instance["passes"],
-        "max_nodes": instance["max_nodes"],
         "clusters_number": int(num_clusters),
         # "silhouette_avg": float(format(silhouette_avg, ".4f")),
         # "davies_bouldin_index": float(format(davies_bouldin, ".4f")),
@@ -169,12 +149,26 @@ def create_knowledge_base(clustered_data, instance, start, end, global_error, nu
         "adjusted_rand_index": float(format(adjusted_rand, ".4f")) if adjusted_rand is not None else None,
         # "rand_index": float(format(rand_index, ".4f")) if rand_index is not None else None,
         "dunn_index": float(format(dunn_index(data, labels), ".4f")),
-        # "connectivity_index": float(format(conn_index, ".4f")),
         "global_error": float(format(global_error, ".4f")),
         "execution_time": float(format(execution_time, ".4f")),
         "objective_function": None,  # Objective function will be assigned after sorting
         "class": None,  # Class will be assigned after sorting
     }
+
+
+def connectivity_index(data, labels, k=10):
+    """Computes the Connectivity Index for clustering validation.
+    Lower values indicate better clustering (neighbors are in the same cluster)."""
+    n_samples = data.shape[0]
+    connectivity = 0.0
+    nbrs = NearestNeighbors(n_neighbors=min(k + 1, n_samples)).fit(data)
+    # For each point, get its k nearest neighbors (excluding itself)
+    distances, indices = nbrs.kneighbors(data)
+    for i in range(n_samples):
+        for j in range(1, min(k + 1, n_samples)):  # skip the first neighbor (itself)
+            if labels[i] != labels[indices[i, j]]:
+                connectivity += 1.0 / j
+    return connectivity
 
 
 def dunn_index(data, labels, metric="euclidean"):
@@ -314,11 +308,11 @@ def classify_knowledge_base(entries, rep, reps, normalize=True):
     return sorted_entries
 
 
-def split_knowledge_base(rules, knowledge_base_file, file_limit_path):
+def split_knowledge_base(rules, knowledge_base_file, file_limit_path, distance):
     """Processes knowledge base and rules to update parameter limits."""
     knowledge_base = pd.read_csv(knowledge_base_file, delimiter=",", skiprows=4).to_dict("records")
     if knowledge_base:
-        limits = list_limits(file_limit_path)
+        limits = list_limits(file_limit_path, distance)
         positive_conditions = get_positive_rules(rules)
         if positive_conditions:
             new_limits = adjust_parameters_based_on_rule(positive_conditions, limits)

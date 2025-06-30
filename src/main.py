@@ -52,7 +52,7 @@ def train_network(seed, size, rep, reps, distance_metric, dataset_name, m):
     print("Generating working memory...")
     start_time_WM = time.time()
     files = aux_folders_limits(dataset_name, seed, rep, reps, distance_metric)
-    working_memory = create_working_memory(rep_seed, size, files["limits_file"])
+    working_memory = create_working_memory(rep_seed, size, files["limits_file"], distance_metric)
     if not working_memory:
         raise ValueError(f"create_working_memory returned an empty or None working_memory for rep {rep}")
     export_working_memory_csv(dataset_name, working_memory, seed, rep, reps, distance_metric)
@@ -82,7 +82,7 @@ def train_network(seed, size, rep, reps, distance_metric, dataset_name, m):
 
         print("Fitting neural network...\n")
 
-        gng = GrowingNeuralGas(base_dir, data, seed, rep, reps, i, distance_metric, max_nodes=instance["max_nodes"])
+        gng = GrowingNeuralGas(base_dir, data, seed, rep, reps, i, distance_metric)
         start, end = gng.fit_network(
             e_b=values[0], e_n=values[1], a_max=values[2], l=values[3], a=values[4], d=values[5], passes=values[6]
         )
@@ -90,8 +90,7 @@ def train_network(seed, size, rep, reps, distance_metric, dataset_name, m):
         export_clustered_data(dataset_name, gng.cluster_data(), seed, rep, reps, i, distance_metric)
         gng.plot_clusters(gng.cluster_data())
 
-        # global_error = gng.compute_global_error()
-        global_error = gng.compute_clustering_error()
+        global_error = gng.compute_global_error()
         num_clusters = gng.number_of_clusters()
 
         if num_clusters > 1:
@@ -132,7 +131,7 @@ def train_network(seed, size, rep, reps, distance_metric, dataset_name, m):
 
     print("Updating limits...\n")
     start_time_UL = time.time()
-    limits_to_update = split_knowledge_base(rules, knowledge_base_file, files["limits_file"])
+    limits_to_update = split_knowledge_base(rules, knowledge_base_file, files["limits_file"], distance_metric)
     update_limits(limits_to_update, files["updated_limits_file"])
     end_time_UL = time.time()
     total_time_UL = get_formatted_time(start_time_UL, end_time_UL)

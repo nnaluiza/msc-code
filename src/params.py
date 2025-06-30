@@ -6,11 +6,11 @@ import os
 
 def list_params():
     """Returns a list of parameters used in the GNG algorithm"""
-    params = ["e_b", "e_n", "a_max", "l", "a", "d", "passes", "max_nodes"]
+    params = ["e_b", "e_n", "a_max", "l", "a", "d", "passes"]
     return params
 
 
-def list_limits(file_limit_path):
+def list_limits(file_limit_path, distance):
     """Returns a list of parameter limits used in the GNG algorithm"""
 
     filename = os.path.basename(file_limit_path)
@@ -22,63 +22,36 @@ def list_limits(file_limit_path):
                 limits = json.load(file)
         except FileNotFoundError:
             limits = [
-                # (0.2, 1),  # e_b
-                # (0.006, 1),  # e_n
-                # (50, 150),  # a_max
-                # (100, 300),  # l
-                # (0.5, 1.5),  # a
-                # (0.995, 3.0),  # d
-                # (10, 30),  # passes
-
-                (0.1, 0.5),  # e_b
-                (0.1, 0.5),  # e_n
+                (0.1, 1),  # e_b
+                (0.1, 1),  # e_n
                 (10, 50),  # a_max
-                (100, 300),  # l
+                (50, 200),  # l
                 (0.1, 1),  # a
                 (0.1, 1),  # d
                 (1, 15),  # passes
-                (2, 10000),  # max_nodes (default, will be set dynamically)
             ]
             with open(file_limit_path, "w") as file:
                 json.dump(limits, file, indent=4)
     else:
         base_dir = os.path.dirname(file_limit_path)
         prev_rep = rep_num - 1
-        source_file = os.path.join(base_dir, f"updated_limits_rep{prev_rep}.json")
+        source_file = os.path.join(base_dir, f"updated_limits_rep{prev_rep}_{distance}.json")
 
-        # Wait until the updated limits file exists
-        import time
-        wait_time = 0
-        while not os.path.exists(source_file) and wait_time < 10:
-            time.sleep(0.1)
-            wait_time += 0.1
-
-        if os.path.exists(source_file):
+        try:
             with open(source_file, "r") as source:
                 limits = json.load(source)
             with open(file_limit_path, "w") as target:
                 json.dump(limits, target, indent=4)
-        else:
-            # Fallback to default if still not found
+        except FileNotFoundError:
             limits = [
-                (0.1, 0.5),  # e_b
-                (0.1, 0.5),  # e_n
+                (0.1, 1),  # e_b
+                (0.1, 1),  # e_n
                 (10, 50),  # a_max
-                (100, 300),  # l
+                (50, 200),  # l
                 (0.1, 1),  # a
                 (0.1, 1),  # d
                 (1, 15),  # passes
-                (2, 10000),  # max_nodes (default, will be set dynamically)
             ]
-            #     (0.1, 0.5),  # e_b
-            #     (0.1, 0.5),  # e_n
-            #     (1, 10),  # a_max
-            #     (10, 50),  # l
-            #     (0.1, 1.0),  # a
-            #     (0.1, 1.0),  # d
-            #     (1, 15),  # passes
-            #     (2, 10000),  # max_nodes (default, will be set dynamically)
-            # ]
             with open(file_limit_path, "w") as file:
                 json.dump(limits, file, indent=4)
 
