@@ -20,7 +20,7 @@ Information Processing Systems 7, 1995.
 class GrowingNeuralGas:
     """GrowingNeuralGas class"""
 
-    def __init__(self, base_path, input_data, seed, rep, reps, i, distance_metric="euclidean"):
+    def __init__(self, base_path, input_data, seed, rep, reps, i, distance_metric="euclidean", max_nodes=None):
         """Initializes the GrowingNeuralGas class"""
         if not isinstance(input_data, np.ndarray):
             self.original_data = np.array(input_data, dtype=float)
@@ -35,6 +35,7 @@ class GrowingNeuralGas:
         self.reps = reps
         self.i = i
         self.base_path = base_path
+        self.max_nodes = max_nodes
         valid_metrics = ["euclidean", "cityblock", "cosine", "pearson"]
         if distance_metric not in valid_metrics:
             raise ValueError(f"distance_metric must be one of {valid_metrics}")

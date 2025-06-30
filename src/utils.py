@@ -137,6 +137,7 @@ def export_knowledge_base_csv(
                     "global_error",
                     # "normalized_global_error",
                     "execution_time",
+                    "objective_function",
                     "class",
                 ]
             )
@@ -163,6 +164,7 @@ def export_knowledge_base_csv(
                         instance["global_error"],
                         # instance["normalized_global_error"],
                         instance["execution_time"],
+                        instance["objective_function"],
                         instance["class"],
                     ]
                 )
@@ -187,6 +189,7 @@ def export_knowledge_base_csv(
                     data["global_error"],
                     # data["normalized_global_error"],
                     data["execution_time"],
+                    data["objective_function"],
                     data["class"],
                 ]
             )

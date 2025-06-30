@@ -8,6 +8,7 @@ from scipy.io import arff
 from scipy.spatial.distance import cdist
 from sklearn import metrics
 from sklearn.datasets import load_iris, make_blobs, make_circles, make_moons
+from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import StandardScaler
 
 from params import list_limits, list_params
@@ -79,6 +80,10 @@ def create_working_memory(seed, size, file_limit_path):
     discrete_params = ["a_max", "l", "passes"]
     working_memory = []
 
+    # Calculate max_nodes as number of samples * 2
+    data, _ = get_data_training("iris")  # Using "iris" just to get the sample size, it will be ignored
+    max_nodes = data.shape[0] * 2
+
     for i in range(int(size)):
         random_values = []
         for j, limit in enumerate(limits):
@@ -86,11 +91,27 @@ def create_working_memory(seed, size, file_limit_path):
             is_discrete = param in discrete_params
             random_value = random_value_generator(limit, is_discrete=is_discrete)
             random_values.append(random_value)
-
+        # Add max_nodes as the last parameter
         dict_value = dict(zip(params, random_values))
+        dict_value["max_nodes"] = max_nodes
         working_memory.append(dict_value)
 
     return working_memory
+
+
+def connectivity_index(data, labels, k=10):
+    """Computes the Connectivity Index for clustering validation.
+    Lower values indicate better clustering (neighbors are in the same cluster)."""
+    n_samples = data.shape[0]
+    connectivity = 0.0
+    nbrs = NearestNeighbors(n_neighbors=min(k + 1, n_samples)).fit(data)
+    # For each point, get its k nearest neighbors (excluding itself)
+    distances, indices = nbrs.kneighbors(data)
+    for i in range(n_samples):
+        for j in range(1, min(k + 1, n_samples)):  # skip the first neighbor (itself)
+            if labels[i] != labels[indices[i, j]]:
+                connectivity += 1.0 / j
+    return connectivity
 
 
 def create_knowledge_base(clustered_data, instance, start, end, global_error, num_clusters, rep_number, true_labels=None):
@@ -109,10 +130,7 @@ def create_knowledge_base(clustered_data, instance, start, end, global_error, nu
     silhouette_avg = metrics.silhouette_score(data, labels, metric="euclidean")
     davies_bouldin = metrics.davies_bouldin_score(data, labels)
     calinski_harabasz = metrics.calinski_harabasz_score(data, labels)
-
-    # print(true_labels)
-    # print(50 * '-')
-    # print(labels)
+    conn_index = connectivity_index(data, labels, k=10)
 
     adjusted_rand = None
     rand_index = None
@@ -143,6 +161,7 @@ def create_knowledge_base(clustered_data, instance, start, end, global_error, nu
         "a": instance["a"],
         "d": instance["d"],
         "passes": instance["passes"],
+        "max_nodes": instance["max_nodes"],
         "clusters_number": int(num_clusters),
         # "silhouette_avg": float(format(silhouette_avg, ".4f")),
         # "davies_bouldin_index": float(format(davies_bouldin, ".4f")),
@@ -150,8 +169,10 @@ def create_knowledge_base(clustered_data, instance, start, end, global_error, nu
         "adjusted_rand_index": float(format(adjusted_rand, ".4f")) if adjusted_rand is not None else None,
         # "rand_index": float(format(rand_index, ".4f")) if rand_index is not None else None,
         "dunn_index": float(format(dunn_index(data, labels), ".4f")),
+        # "connectivity_index": float(format(conn_index, ".4f")),
         "global_error": float(format(global_error, ".4f")),
         "execution_time": float(format(execution_time, ".4f")),
+        "objective_function": None,  # Objective function will be assigned after sorting
         "class": None,  # Class will be assigned after sorting
     }
 
@@ -226,17 +247,68 @@ def classify_knowledge_base(entries, rep, reps, normalize=True):
     else:
         normalized_times = [0.0] * len(execution_times)
 
+    # Add connectivity index to the composite score (optional, here as 0.2 weight)
+    connectivity_indices = [entry.get("connectivity_index", 0.0) for entry in entries]
+    min_conn = min(connectivity_indices)
+    max_conn = max(connectivity_indices)
+    if max_conn != min_conn:
+        normalized_conn = [(ci - min_conn) / (max_conn - min_conn) for ci in connectivity_indices]
+    else:
+        normalized_conn = [0.0] * len(connectivity_indices)
+
     composite_scores = [
-        normalized_errors[i] * 0.5 + normalized_dunn[i] * 0.3 + normalized_times[i] * 0.2 for i in range(len(entries))
+        normalized_errors[i] * 0.4 + normalized_dunn[i] * 0.25 + normalized_times[i] * 0.15 + normalized_conn[i] * 0.2
+        for i in range(len(entries))
     ]
+
+    # Normalize Dunn index and global error
+    dunn_indices = np.array(dunn_indices)
+    global_errors = np.array(global_errors)
+    norm_dunn = (dunn_indices - np.min(dunn_indices)) / (np.max(dunn_indices) - np.min(dunn_indices) + 1e-8)
+    norm_error = (global_errors - np.min(global_errors)) / (np.max(global_errors) - np.min(global_errors) + 1e-8)
+
+    # Dynamic reward/penalty system based on Dunn index mean and std
+    mean_dunn = np.mean(dunn_indices)
+    std_dunn = np.std(dunn_indices)
+    dunn_reward = 0.1  # Subtract from score (reward)
+    dunn_penalty = 0.15  # Add to score (penalty)
+
+    # Use MAD (Median Absolute Deviation) for reward/penalty thresholds
+    def mad(arr):
+        med = np.median(arr)
+        return np.median(np.abs(arr - med))
+
+    dunn_median = np.median(norm_dunn)
+    dunn_mad = mad(norm_dunn)
+    error_median = np.median(norm_error)
+    error_mad = mad(norm_error)
+    error_reward = 0.1
+    error_penalty = 0.15
+
+    adjusted_scores = []
+    for i, score in enumerate(composite_scores):
+        dunn = norm_dunn[i]
+        error = norm_error[i]
+        adjusted_score = score
+        # Reward/penalize based on MAD
+        if dunn > dunn_median + dunn_mad:
+            adjusted_score -= dunn_reward
+        elif dunn < dunn_median - dunn_mad:
+            adjusted_score += dunn_penalty
+        if error < error_median - error_mad:
+            adjusted_score -= error_reward
+        elif error > error_median + error_mad:
+            adjusted_score += error_penalty
+        adjusted_scores.append(adjusted_score)
 
     initial_percentile = 80
     min_percentile = 10
-    decrement = 5
+    decrement = 10
     current_percentile = max(min_percentile, initial_percentile - (rep - 1) * decrement)
-    threshold = np.percentile(composite_scores, current_percentile)
+    threshold = np.percentile(adjusted_scores, current_percentile)
 
-    for entry, score in zip(sorted_entries, composite_scores):
+    for entry, score in zip(sorted_entries, adjusted_scores):
+        entry["objective_function"] = float(format(score, ".4f"))
         entry["class"] = 1 if score <= threshold else 0
 
     return sorted_entries

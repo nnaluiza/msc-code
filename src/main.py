@@ -82,7 +82,7 @@ def train_network(seed, size, rep, reps, distance_metric, dataset_name, m):
 
         print("Fitting neural network...\n")
 
-        gng = GrowingNeuralGas(base_dir, data, seed, rep, reps, i, distance_metric)
+        gng = GrowingNeuralGas(base_dir, data, seed, rep, reps, i, distance_metric, max_nodes=instance["max_nodes"])
         start, end = gng.fit_network(
             e_b=values[0], e_n=values[1], a_max=values[2], l=values[3], a=values[4], d=values[5], passes=values[6]
         )

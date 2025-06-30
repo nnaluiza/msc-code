@@ -11,8 +11,46 @@ from rules import extract_rules
 from utils import aux_folders_rules
 
 
+# def train_tree(dataset_name, distance_metric, rep, reps, seed, knowledge_base_file, tree_log_path):
+#     """Trains a decision tree classifier using GNG parameters and class with cross-validated hyperparameters"""
+#     df = pd.read_csv(knowledge_base_file, delimiter=",", skiprows=4)
+#     columns_to_exclude = [
+#         "clusters_number",
+#         # "silhouette_avg",
+#         # "davies_bouldin_index",
+#         # "calinski_harabasz_index",
+#         "adjusted_rand_index",
+#         # "rand_index",
+#         "dunn_index",
+#         "global_error",
+#         # "normalized_global_error",
+#         "execution_time",
+#         "class",
+#         "rep_number",
+#         "objective_function"
+#     ]
+#     X = df.drop(columns_to_exclude, axis=1)
+#     y = df["class"]
+#     param_grid = {
+#         "max_depth": [5, 10, 15],
+#         "min_samples_leaf": [3, 5, 10],
+#         "min_samples_split": [3, 10],
+#         "max_leaf_nodes": [30, 50, 100],
+#     }
+#     clf = GridSearchCV(DecisionTreeClassifier(random_state=seed, criterion="entropy"), param_grid, cv=5, scoring="f1", n_jobs=-1)
+#     clf.fit(X, y)
+#     best_clf = clf.best_estimator_
+#     print(f"Best hyperparameters: {clf.best_params_}")
+#     names = list(X.columns)
+#     classes = ["1", "0"]
+#     show_tree(best_clf, names, classes, rep, tree_log_path)
+#     text_representation = export_text(best_clf, feature_names=names)
+#     print(text_representation)
+#     print("-" * 50)
+#     return get_rules(dataset_name, distance_metric, best_clf, names, classes, rep, reps, seed)
+
 def train_tree(dataset_name, distance_metric, rep, reps, seed, knowledge_base_file, tree_log_path):
-    """Trains a decision tree classifier using GNG parameters and class with cross-validated hyperparameters"""
+    """Trains a decision tree classifier using GNG parameters and class with fixed hyperparameters"""
     df = pd.read_csv(knowledge_base_file, delimiter=",", skiprows=4)
     columns_to_exclude = [
         "clusters_number",
@@ -27,26 +65,29 @@ def train_tree(dataset_name, distance_metric, rep, reps, seed, knowledge_base_fi
         "execution_time",
         "class",
         "rep_number",
+        "objective_function"
     ]
+
     X = df.drop(columns_to_exclude, axis=1)
     y = df["class"]
-    param_grid = {
-        "max_depth": [5, 10, 15],
-        "min_samples_leaf": [3, 5, 10],
-        "min_samples_split": [5, 10],
-        "max_leaf_nodes": [30, 50, 100],
-    }
-    clf = GridSearchCV(DecisionTreeClassifier(random_state=seed, criterion="entropy"), param_grid, cv=5, scoring="f1", n_jobs=-1)
+
+    clf = DecisionTreeClassifier(
+        random_state=seed,
+        criterion="entropy",
+        max_depth=10,
+        min_samples_split=3,
+        max_leaf_nodes=50)
     clf.fit(X, y)
-    best_clf = clf.best_estimator_
-    print(f"Best hyperparameters: {clf.best_params_}")
+
     names = list(X.columns)
     classes = ["1", "0"]
-    show_tree(best_clf, names, classes, rep, tree_log_path)
-    text_representation = export_text(best_clf, feature_names=names)
+
+    show_tree(clf, names, classes, rep, tree_log_path)
+    text_representation = export_text(clf, feature_names=names)
+
     print(text_representation)
     print("-" * 50)
-    return get_rules(dataset_name, distance_metric, best_clf, names, classes, rep, reps, seed)
+    return get_rules(dataset_name, distance_metric, clf, names, classes, rep, reps, seed)
 
 
 def get_rules(dataset_name, distance_metric, tree, feature_names, class_names, rep, reps, seed):
