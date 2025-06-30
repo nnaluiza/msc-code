@@ -3,11 +3,15 @@
 # python3 script.py 1 150 10 euclidean iris
 # python3 script.py 1 100 10 cosine iris
 # python3 script.py 1 100 10 cityblock iris
-python3 script.py 1 50 10 euclidean ds2c2sc13.arff
-python3 script.py 2 50 10 euclidean ds2c2sc13.arff
-python3 script.py 3 50 10 euclidean ds2c2sc13.arff
-python3 script.py 4 50 10 euclidean ds2c2sc13.arff
-python3 script.py 5 50 10 euclidean ds2c2sc13.arff
+python3 script.py 1 50 10 euclidean,cityblock,cosine ds2c2sc13.arff
+python3 script.py 2 50 10 euclidean,cityblock,cosine ds2c2sc13.arff
+python3 script.py 3 50 10 euclidean,cityblock,cosine ds2c2sc13.arff
+python3 script.py 4 50 10 euclidean,cityblock,cosine ds2c2sc13.arff
+python3 script.py 5 50 10 euclidean,cityblock,cosine ds2c2sc13.arff
+
+
+
+
 # python3 script.py 6 50 12 euclidean ds2c2sc13.arff
 # python3 script.py 7 50 12 euclidean ds2c2sc13.arff
 # python3 script.py 8 50 12 euclidean ds2c2sc13.arff
@@ -44,3 +48,22 @@ python3 script.py 5 50 10 euclidean ds2c2sc13.arff
 
 # wait
 # echo "All experiments finished."
+
+# Auto-generated experiment lines
+# for dataset in complex8 complex9 diamond9 ds2c2sc13 hypercube; do
+#   for i in {1..30}; do
+#     python3 script.py $i 50 10 euclidean,cityblock,cosine ${dataset}.arff
+#   done
+# done
+
+for dataset in diamond9; do
+  for i in {1..30}; do
+    python3 script.py $i 50 10 euclidean,cityblock,cosine ${dataset}.arff
+  done
+done
+
+# for dataset in ds2c2sc13 hypercube; do
+#   for i in {1..30}; do
+#     python3 script.py $i 50 10 euclidean,cityblock,cosine ${dataset}.arff
+#   done
+# done

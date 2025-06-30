@@ -151,10 +151,12 @@ def main(params):
     seed = int(params[0])
     size = int(params[1])
     reps = int(params[2])
-    distance_metric = params[3]
+    distance_metrics = params[3].split(",")
     dataset_name = params[4]
 
-    run_model(seed, size, reps, distance_metric, dataset_name, size)
+    for distance_metric in distance_metrics:
+        print(f"Running for distance metric: {distance_metric}")
+        run_model(seed, size, reps, distance_metric.strip(), dataset_name, size)
 
 
 if __name__ == "__main__":
