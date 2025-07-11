@@ -60,15 +60,33 @@ class GrowingNeuralGas:
             return 1.0
 
     def find_nearest_units(self, observation):
-        """Finds the nearest unit to a given observation"""
-        distance = []
+        """Finds the nearest unit to a given observation using vectorized computation."""
+        node_ids = []
+        vectors = []
         for u, attributes in self.network.nodes(data=True):
-            vector = attributes["vector"]
-            dist = self.compute_distance(vector, observation)
-            distance.append((u, dist))
-        distance.sort(key=lambda x: x[1])
-        ranking = [u for u, dist in distance]
-        return ranking
+            node_ids.append(u)
+            vectors.append(attributes["vector"])
+        vectors = np.array(vectors)
+
+        if self.distance_metric == "pearson":
+            # Vectorized Pearson distance: 1 - correlation
+            obs = observation - np.mean(observation)
+            obs_std = np.std(observation)
+            if obs_std == 0:
+                distances = np.ones(len(vectors))
+            else:
+                vectors_centered = vectors - np.mean(vectors, axis=1, keepdims=True)
+                vectors_std = np.std(vectors, axis=1)
+                valid = vectors_std != 0
+                corrs = np.zeros(len(vectors))
+                corrs[valid] = np.dot(vectors_centered[valid], obs) / (vectors_std[valid] * obs_std * len(observation))
+                distances = 1 - corrs
+                distances[~valid] = 1.0
+        else:
+            distances = spatial.distance.cdist(vectors, observation.reshape(1, -1), metric=self.distance_metric).flatten()
+
+        ranking = np.argsort(distances)
+        return [node_ids[i] for i in ranking]
 
     def prune_connections(self, a_max):
         """Removes edges from the network that have an age greater than a_max"""
