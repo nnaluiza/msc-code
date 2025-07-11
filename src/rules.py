@@ -40,28 +40,41 @@ def get_positive_rules(rules):
     Extracts parameter conditions from rules that lead to class 1.
     Returns a list of tuples: (param_name, operator, value)
     where operator is either '<=' or '>'
+    Skips rules with no conditions (e.g., 'if  then ...').
     """
     params = list_params()
     positive_conditions = []
 
     for rule in rules:
-        if "class: 1" in rule:
-            # Split the rule into conditions and result
-            conditions_part = rule.split("then")[0].strip()
-            conditions = conditions_part.split("if ")[1].split(" and ")
+        try:
+            if "class: 1" in rule:
+                # Split the rule into conditions and result
+                if "then" not in rule or "if" not in rule:
+                    continue
+                conditions_part = rule.split("then")[0].strip()
+                # Extract the part after 'if '
+                if not conditions_part.startswith("if "):
+                    continue
+                conditions_str = conditions_part[3:].strip()
+                if not conditions_str:
+                    # No conditions present
+                    print(f"No positive conditions found in rule: {rule.strip()}")
+                    continue
+                conditions = conditions_str.split(" and ")
+                for condition in conditions:
+                    condition = condition.strip("()")
+                    for param in params:
+                        if param in condition:
+                            if "<=" in condition:
+                                value = float(condition.split("<=")[1].strip())
+                                positive_conditions.append((param, "<=", value))
+                            elif ">" in condition:
+                                value = float(condition.split(">", 1)[1].strip())
+                                positive_conditions.append((param, ">", value))
+        except Exception as e:
+            print(f"Error processing rule: {rule.strip()} | Exception: {e}")
 
-            for condition in conditions:
-                condition = condition.strip("()")
-                for param in params:
-                    if param in condition:
-                        if "<=" in condition:
-                            value = float(condition.split("<=")[1].strip())
-                            positive_conditions.append((param, "<=", value))
-                        elif ">" in condition:
-                            value = float(condition.split(">")[1].strip())
-                            positive_conditions.append((param, ">", value))
-
-    return positive_conditions
+    return positive_conditions  # Always a list, even if empty
 
 
 def adjust_parameters_based_on_rule(positive_conditions, limits):

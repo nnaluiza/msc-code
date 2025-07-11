@@ -297,9 +297,11 @@ def split_knowledge_base(rules, knowledge_base_file, file_limit_path, distance):
     if knowledge_base:
         limits = list_limits(file_limit_path, distance)
         positive_conditions = get_positive_rules(rules)
-        if positive_conditions:
-            new_limits = adjust_parameters_based_on_rule(positive_conditions, limits)
-            return new_limits
+        if not positive_conditions:
+            print("No positive conditions found. Stopping execution.")
+            raise SystemExit(1)
+        new_limits = adjust_parameters_based_on_rule(positive_conditions, limits)
+        return new_limits
 
 
 def get_real_labels(obj, df):
