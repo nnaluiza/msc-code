@@ -383,13 +383,36 @@ class GrowingNeuralGas:
         plt.close()
 
     def compute_global_error(self):
-        """Calculates clustering error as normalized quantization error with connectivity penalty"""
-        quantization_error = 0
-        for observation in self.data:
-            nearest_units = self.find_nearest_units(observation)
-            s_1 = nearest_units[0]
-            dist = self.compute_distance(observation, self.network.nodes[s_1]["vector"])
-            quantization_error += dist**2
+        """Calculates clustering error as normalized quantization error with connectivity penalty (vectorized)."""
+        # Stack all unit vectors
+        unit_ids = list(self.network.nodes())
+        unit_vectors = np.array([self.network.nodes[u]["vector"] for u in unit_ids])
+        observations = np.array(self.data)
+
+        if self.distance_metric == "pearson":
+            # Vectorized Pearson distance: 1 - correlation
+            obs_centered = observations - np.mean(observations, axis=1, keepdims=True)
+            obs_std = np.std(observations, axis=1, keepdims=True)
+            unit_centered = unit_vectors - np.mean(unit_vectors, axis=1, keepdims=True)
+            unit_std = np.std(unit_vectors, axis=1, keepdims=True)
+            # Compute correlation for each observation-unit pair
+            # (N, M) = (N, 1, d) * (1, M, d) -> (N, M)
+            N, d = obs_centered.shape
+            M = unit_centered.shape[0]
+            corrs = np.empty((N, M))
+            for i in range(N):
+                for j in range(M):
+                    if obs_std[i, 0] == 0 or unit_std[j, 0] == 0:
+                        corrs[i, j] = 0
+                    else:
+                        corrs[i, j] = np.dot(obs_centered[i], unit_centered[j]) / (obs_std[i, 0] * unit_std[j, 0] * d)
+            distances = 1 - corrs
+        else:
+            distances = spatial.distance.cdist(observations, unit_vectors, metric=self.distance_metric)
+
+        # For each observation, find the minimum distance (closest unit)
+        min_distances = np.min(distances, axis=1)
+        quantization_error = np.sum(min_distances ** 2)
 
         data_variance = np.sum(np.var(self.data, axis=0)) if np.sum(np.var(self.data, axis=0)) > 0 else 1.0
         normalized_quantization_error = quantization_error / data_variance
