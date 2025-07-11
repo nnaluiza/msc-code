@@ -303,17 +303,26 @@ def split_knowledge_base(rules, knowledge_base_file, file_limit_path, distance):
 
 
 def get_real_labels(obj, df):
-    """Extracts the actual labels from the data"""
-    obj_tuple = [(tuple(array), value) for array, value in obj]
+    """Extracts the actual labels from the data using a fast DataFrame multi-index lookup."""
+    # Determine if z_t is present
+    if "z_t" in df.columns:
+        index_cols = ["x_t", "y_t", "z_t"]
+    else:
+        index_cols = ["x_t", "y_t"]
+    # Set multi-index for fast lookup
+    df_indexed = df.set_index(index_cols)
     messy_classes = []
-
-    for array_tuple, value in obj_tuple:
-        for i, row in df.iterrows():
-            if "z_t" in df.columns:
-                if (row["x_t"], row["y_t"], row["z_t"]) == array_tuple:
-                    messy_classes.append(float(row["class"].decode("utf-8")))
-                    break
-            elif (row["x_t"], row["y_t"]) == array_tuple:
-                messy_classes.append(float(row["class"].decode("utf-8")))
-                break
+    for array, value in obj:
+        key = tuple(array)
+        try:
+            label = df_indexed.loc[key]["class"]
+            # Handle bytes if needed
+            if isinstance(label, bytes):
+                label = float(label.decode("utf-8"))
+            else:
+                label = float(label)
+            messy_classes.append(label)
+        except KeyError:
+            # If not found, skip or append None
+            messy_classes.append(None)
     return messy_classes
