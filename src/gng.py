@@ -326,11 +326,31 @@ class GrowingNeuralGas:
             for unit in c:
                 unit_to_cluster[unit] = cluster
             cluster += 1
-        clustered_data = []
-        for observation in self.original_data:
-            nearest_units = self.find_nearest_units(observation)
-            s = nearest_units[0]
-            clustered_data.append((observation, unit_to_cluster[s]))
+        # Batch assignment of observations to clusters
+        unit_ids = list(self.network.nodes())
+        unit_vectors = np.array([self.network.nodes[u]["vector"] for u in unit_ids])
+        observations = np.array(self.original_data)
+
+        if self.distance_metric == "pearson":
+            obs_centered = observations - np.mean(observations, axis=1, keepdims=True)
+            obs_std = np.std(observations, axis=1, keepdims=True)
+            unit_centered = unit_vectors - np.mean(unit_vectors, axis=1, keepdims=True)
+            unit_std = np.std(unit_vectors, axis=1, keepdims=True)
+            N, d = obs_centered.shape
+            M = unit_centered.shape[0]
+            corrs = np.empty((N, M))
+            for i in range(N):
+                for j in range(M):
+                    if obs_std[i, 0] == 0 or unit_std[j, 0] == 0:
+                        corrs[i, j] = 0
+                    else:
+                        corrs[i, j] = np.dot(obs_centered[i], unit_centered[j]) / (obs_std[i, 0] * unit_std[j, 0] * d)
+            distances = 1 - corrs
+        else:
+            distances = spatial.distance.cdist(observations, unit_vectors, metric=self.distance_metric)
+
+        closest_unit_indices = np.argmin(distances, axis=1)
+        clustered_data = [(observation, unit_to_cluster[unit_ids[idx]]) for observation, idx in zip(self.original_data, closest_unit_indices)]
         return clustered_data
 
     def reduce_dimension(self, clustered_data):
