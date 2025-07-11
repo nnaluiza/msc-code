@@ -227,17 +227,20 @@ class GrowingNeuralGas:
                     self.network.nodes[q]["error"] = min(self.network.nodes[q]["error"], max_error_value)
                     self.network.nodes[f]["error"] = min(self.network.nodes[f]["error"], max_error_value)
                     self.network.nodes[r]["error"] = min(self.network.nodes[r]["error"], max_error_value)
-                """ 9. Decrease all error variables by multiplying them with a constant d """
-                error = 0
-                for u in self.network.nodes():
-                    error += self.network.nodes[u]["error"]
+                # 9. Decrease all error variables by multiplying them with a constant d
+                # Vectorized error accumulation and decay
+                node_list = list(self.network.nodes())
+                errors = np.array([self.network.nodes[u]["error"] for u in node_list])
+                error = errors.sum()
                 accumulated_local_error.append(error)
                 network_order.append(self.network.order())
                 network_size.append(self.network.size())
                 total_units.append(self.units_created)
-                for u in self.network.nodes():
-                    self.network.nodes[u]["error"] *= d
-                    self.network.nodes[u]["error"] = min(self.network.nodes[u]["error"], max_error_value)
+                # Decay and clip errors in a vectorized way
+                errors *= d
+                errors = np.clip(errors, 0, max_error_value)
+                for idx, u in enumerate(node_list):
+                    self.network.nodes[u]["error"] = errors[idx]
             global_error.append(self.compute_global_error())
 
             end = time.time()
