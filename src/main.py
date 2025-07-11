@@ -4,6 +4,8 @@ import random
 import sys
 import time
 from datetime import timedelta
+import os
+import multiprocessing
 
 from base import (
     classify_knowledge_base,
@@ -43,6 +45,22 @@ def run_model(seed, size, reps, distance_metric, dataset_name, m):
     end_time = time.time()
     total_time = get_formatted_time(start_time, end_time)
     print(f"\nTraining all done in ~{total_time}\n")
+
+
+def run_model_with_logging(seed, size, reps, distance_metric, dataset_name, m, logs_dir):
+    """Runs run_model and redirects stdout/stderr to a log file in logs_dir."""
+    log_file_path = os.path.join(logs_dir, f"{distance_metric}.log")
+    with open(log_file_path, "w") as log_file:
+        # Redirect stdout and stderr
+        sys.stdout = log_file
+        sys.stderr = log_file
+        try:
+            run_model(seed, size, reps, distance_metric, dataset_name, m)
+        except Exception as e:
+            print(f"Exception occurred: {e}")
+        finally:
+            sys.stdout = sys.__stdout__
+            sys.stderr = sys.__stderr__
 
 
 def train_network(seed, size, rep, reps, distance_metric, dataset_name, m):
@@ -154,9 +172,24 @@ def main(params):
     distance_metrics = params[3].split(",")
     dataset_name = params[4]
 
-    for distance_metric in distance_metrics:
-        print(f"Running for distance metric: {distance_metric}")
-        run_model(seed, size, reps, distance_metric.strip(), dataset_name, size)
+    logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "logs")
+    os.makedirs(logs_dir, exist_ok=True)
+
+    if len(distance_metrics) > 1:
+        processes = []
+        for distance_metric in distance_metrics:
+            distance_metric = distance_metric.strip()
+            print(f"Spawning process for distance metric: {distance_metric}")
+            p = multiprocessing.Process(
+                target=run_model_with_logging,
+                args=(seed, size, reps, distance_metric, dataset_name, size, logs_dir)
+            )
+            p.start()
+            processes.append(p)
+        for p in processes:
+            p.join()
+    else:
+        run_model(seed, size, reps, distance_metrics[0].strip(), dataset_name, size)
 
 
 if __name__ == "__main__":

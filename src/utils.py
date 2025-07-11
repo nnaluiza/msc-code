@@ -10,40 +10,25 @@ from tabulate import tabulate
 
 def aux_folders_limits(dataset_name, seed, rep, reps, distance):
     """Creates the necessary folders to store the limits if they don't already exist"""
-    if not os.path.exists("logs/limits"):
-        os.makedirs("logs/limits")
-
+    os.makedirs("logs/limits", exist_ok=True)
     dir_path = f"logs/limits/{dataset_name}/seed-{seed}_reps-{reps}_{distance}"
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-
+    os.makedirs(dir_path, exist_ok=True)
     file_limits_name = f"{dir_path}/limits_rep{rep}.json"
     file_updated_limits_name = f"{dir_path}/updated_limits_rep{rep}_{distance}.json"
-
     return {"limits_file": file_limits_name, "updated_limits_file": file_updated_limits_name}
 
 
 def aux_folders(dataset_name, seed, rep, reps, i, distance):
     """Creates the necessary folders for visualization if they don't already exist"""
-    if not os.path.exists("logs/visualization"):
-        os.makedirs("logs/visualization")
-
+    os.makedirs("logs/visualization", exist_ok=True)
     dir_path = f"logs/visualization/{dataset_name}/seed-{seed}_reps-{reps}_{distance}"
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-
+    os.makedirs(dir_path, exist_ok=True)
     dir_path_ = f"{dir_path}/rep{rep}"
-    if not os.path.exists(dir_path_):
-        os.makedirs(dir_path_)
-
+    os.makedirs(dir_path_, exist_ok=True)
     dir_path__ = f"{dir_path_}/i{i}"
-    if not os.path.exists(dir_path__):
-        os.makedirs(dir_path__)
-
+    os.makedirs(dir_path__, exist_ok=True)
     dir_path___ = f"{dir_path__}/sequence"
-    if not os.path.exists(dir_path___):
-        os.makedirs(dir_path___)
-
+    os.makedirs(dir_path___, exist_ok=True)
     return dir_path__
 
 
@@ -59,14 +44,9 @@ def show_working_memory(data):
 
 def export_working_memory_csv(dataset_name, data, seed, rep, reps, distance):
     """Exports the working memory to a CSV file"""
-
-    if not os.path.exists("logs/working_memory"):
-        os.makedirs("logs/working_memory")
-
+    os.makedirs("logs/working_memory", exist_ok=True)
     dir_path = f"logs/working_memory/{dataset_name}/seed-{seed}_reps-{reps}_{distance}"
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-
+    os.makedirs(dir_path, exist_ok=True)
     file_name = f"{dir_path}/working_memory_rep{rep}.csv"
 
     with open(f"{file_name}", "w", newline="") as csvfile:
@@ -92,13 +72,9 @@ def export_working_memory_csv(dataset_name, data, seed, rep, reps, distance):
 
 def get_knowledge_base_file(dataset_name, seed, rep, reps, distance):
     """Creates the necessary folders for the knowledge bases if they don't already exist"""
-    if not os.path.exists("logs/knowledge_base"):
-        os.makedirs("logs/knowledge_base")
-
+    os.makedirs("logs/knowledge_base", exist_ok=True)
     dir_path = f"logs/knowledge_base/{dataset_name}/seed-{seed}_reps-{reps}_{distance}"
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-
+    os.makedirs(dir_path, exist_ok=True)
     file_name = f"{dir_path}/knowledge_base_rep{rep}.csv"
 
     return file_name
@@ -197,18 +173,11 @@ def export_knowledge_base_csv(
 
 def export_clustered_data(dataset_name, data, seed, rep, reps, i, distance):
     """Exports the clustered data to a text file, which is solely used for comparison of the results."""
-
-    if not os.path.exists("logs/clusters"):
-        os.makedirs("logs/clusters")
-
+    os.makedirs("logs/clusters", exist_ok=True)
     dir_path = f"logs/clusters/{dataset_name}/seed-{seed}_reps-{reps}_{distance}"
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-
+    os.makedirs(dir_path, exist_ok=True)
     dir_path_ = f"{dir_path}/rep{rep}"
-    if not os.path.exists(dir_path_):
-        os.makedirs(dir_path_)
-
+    os.makedirs(dir_path_, exist_ok=True)
     file_name = f"{dir_path_}/clustered_data_rep{rep}_i{i}.csv"
 
     file = io.open(f"{file_name}", "w")
@@ -218,25 +187,18 @@ def export_clustered_data(dataset_name, data, seed, rep, reps, i, distance):
 
 def aux_folders_rules(dataset_name, seed, rep, reps, distance):
     """Creates the necessary folders for the rules if they don't already exist"""
-    if not os.path.exists("logs/rules"):
-        os.makedirs("logs/rules")
-
+    os.makedirs("logs/rules", exist_ok=True)
     dir_path = f"logs/rules/{dataset_name}/seed-{seed}_reps-{reps}_{distance}"
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-
+    os.makedirs(dir_path, exist_ok=True)
     file_name = f"{dir_path}/extracted_rules_rep{rep}.txt"
     return file_name
 
 
 def aux_folders_tree(dataset_name, seed, reps, distance):
     """Creates the necessary folders for the tree images if they don't already exist"""
-    if not os.path.exists("logs/tree"):
-        os.makedirs("logs/tree")
-
+    os.makedirs("logs/tree", exist_ok=True)
     dir_path = f"logs/tree/{dataset_name}/seed-{seed}_reps-{reps}_{distance}"
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
+    os.makedirs(dir_path, exist_ok=True)
 
     return dir_path
 
